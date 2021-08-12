@@ -1,0 +1,8 @@
+[deps]
+ArgCheck = "dce04be8-c92d-5529-be00-80e4d2c0e197"
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+Julio = "90b429c0-bbb2-41ec-aa7f-233732bc5b96"
+Reagents = "88ee5918-12fa-4b16-93fd-f90ded6a9b8c"
+Sockets = "6462fe0b-24de-5631-8697-dd941f90decc"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+TestFunctionRunner = "792026f5-ac9a-4a19-adcb-47b0ce2deb5d"

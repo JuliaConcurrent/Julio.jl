@@ -3,11 +3,11 @@ uuid = "90b429c0-bbb2-41ec-aa7f-233732bc5b96"
 authors = ["Takafumi Arakaki <aka.tkf@gmail.com> and contributors"]
 version = "0.0.1"
 
+[deps]
+ArgCheck = "dce04be8-c92d-5529-be00-80e4d2c0e197"
+ContextVariablesX = "6add18c4-b38d-439d-96f6-d6bc489c04c5"
+DefineSingletons = "244e2a9f-e319-4986-a169-4d1fe445cd52"
+Reagents = "88ee5918-12fa-4b16-93fd-f90ded6a9b8c"
+
 [compat]
-julia = "1"
-
-[extras]
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-
-[targets]
-test = ["Test"]
+julia = "1.7"
