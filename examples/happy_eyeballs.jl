@@ -24,12 +24,18 @@ function happy_eyeballs(host, port; delay = 0.3)
                 socket = TCPSocket()
                 push!(allsockets, socket)
                 Julio.spawn!(tg) do
+                    # Quick check for `Julio.iscancelled()` path:           #src
+                    # ip == addrs[end] || sleep(1)                          #src
                     try
                         connect(socket, ip, port)
                     catch err
-                        err isa Base.IOError || rethrow()
-                        failed[] = nothing
-                        return
+                        if err isa Base.IOError
+                            failed[] = nothing
+                            return
+                        elseif Julio.iscancelled()
+                            return
+                        end
+                        rethrow()
                     end
                     Julio.tryput!(winner, socket)
                 end

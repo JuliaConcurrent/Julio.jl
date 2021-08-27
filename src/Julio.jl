@@ -48,6 +48,7 @@ function select end
 function sync end
 function yield end
 function checkpoint end
+function iscancelled end
 
 # DefineSingletons.@def_singleton var"try" isa Function
 DefineSingletons.@def_singleton Events
