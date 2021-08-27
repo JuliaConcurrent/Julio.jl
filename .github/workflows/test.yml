@@ -21,7 +21,7 @@ jobs:
         with:
           version: ${{ matrix.julia-version }}
       - run: julia -e 'using Pkg; Pkg.add(name="Run", version="0.1")'
-      - run: julia -e 'using Run; Run.prepare_test(project="test/environments/main")'
+      - run: julia -e 'using Run; Run.prepare("test/environments/main")'
       - run: julia -e 'using Run; Run.test(project="test/environments/main")'
         env:
           JULIA_NUM_THREADS: "2"
