@@ -15,9 +15,9 @@ PAGES = [
     "Tutorials" => [
         "Introduction" => "tutorials/introduction.md",
         "Select" => "tutorials/select.md",
-        "Custom select" => "tutorials/custom_select.md",
         "Example: Happy Eyeballs" => "tutorials/happy_eyeballs.md",
         "Example: Google Search 3.0" => "tutorials/search3.md",
+        "Advanced: Custom select" => "tutorials/custom_select.md",
         # ...
     ],
     # "How-to guides" => [
