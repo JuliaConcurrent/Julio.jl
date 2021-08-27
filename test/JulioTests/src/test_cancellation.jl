@@ -79,4 +79,28 @@ function test_nested_cancel()
     @test !timeout[]
 end
 
+function test_iscancelled()
+    local a, b, c
+    ie, oe = Julio.openchannel()
+    Julio.withtaskgroup() do tg
+        Julio.spawn!(tg) do
+            a = Julio.iscancelled()
+            put!(ie, 111)
+            try
+                put!(ie, 222)
+            finally
+                b = Julio.iscancelled()
+                Julio.shield() do
+                    c = Julio.iscancelled()
+                end
+            end
+        end
+        @test take!(oe) == 111
+        Julio.cancel!(tg)
+    end
+    @test !a
+    @test b
+    @test !c
+end
+
 end  # module
