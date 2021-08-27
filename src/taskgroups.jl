@@ -163,6 +163,11 @@ function Julio.spawn!(@nospecialize(f), tg::TaskGroup, args...)
     return task
 end
 
+function Julio.iscancelled()
+    token = @something(CANCELLATION_TOKEN[], return false)
+    return maybefetching(token)() isa Some{Cancelled}
+end
+
 function Julio.checkpoint()
     token = @something(CANCELLATION_TOKEN[], return)
     ans = @something(Reagents.try!(fetching(token)), return)
