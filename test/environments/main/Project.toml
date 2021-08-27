@@ -1,0 +1,5 @@
+[deps]
+Julio = "90b429c0-bbb2-41ec-aa7f-233732bc5b96"
+JulioTests = "0aa1c9e4-4aed-40bd-8113-938f83d0ae35"
+Reagents = "88ee5918-12fa-4b16-93fd-f90ded6a9b8c"
+TestFunctionRunner = "792026f5-ac9a-4a19-adcb-47b0ce2deb5d"

@@ -1,0 +1,35 @@
+name: Run tests
+
+on:
+  push:
+    branches:
+      - master
+    tags: '*'
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        julia-version: ['1.7-nightly', 'nightly']
+      fail-fast: false
+    name: Test Julia ${{ matrix.julia-version }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: julia-actions/setup-julia@v1
+        with:
+          version: ${{ matrix.julia-version }}
+      - uses: julia-actions/julia-buildpkg@v1
+      - run: julia -e 'using Pkg; Pkg.add(name="Run", version="0.1")'
+      - run: julia -e 'using Run; Run.prepare_test(project="test/environments/main")'
+      - run: julia -e 'using Run; Run.test(project="test/environments/main")'
+        env:
+          JULIA_NUM_THREADS: "2"
+          TEST_FUNCTION_RUNNER_JL_TIMEOUT: "300"
+      - uses: julia-actions/julia-processcoverage@v1
+      - uses: codecov/codecov-action@v1
+        with:
+          file: ./lcov.info
+          flags: Run.test
+          name: codecov-umbrella
