@@ -74,6 +74,7 @@ end
 # * [Two Approaches to Structured Concurrency - 250bpm](https://250bpm.com/blog:139/)
 
 function test_happy_eyeballs()
+    VERSION ≥ v"1.8-" && return  #src
     socket = happy_eyeballs("httpbin.org", 80)
     try
         @test socket isa TCPSocket
