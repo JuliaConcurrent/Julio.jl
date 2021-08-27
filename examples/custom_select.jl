@@ -1,9 +1,10 @@
 # # Selecting on custom events
 
-# Julio.jl is built on top of Reagents.jl, a framework for writing nonblocking
-# and synchronization programs.  In fact, `Julia.select` is a thin wrapper on
-# top of the choice combinator `|` defined in Reagents.jl.  Therefore, it is
-# possible to define custom synchronization events using Reagents.jl API.
+# Julio.jl is built on top of Reagents.jl, a framework for writing programs with
+# complex nonblocking algorithms and synchronizations.  In fact, `Julia.select`
+# is a thin wrapper on top of the choice combinator `|` defined in Reagents.jl.
+# Therefore, it is possible to define custom synchronization events using
+# Reagents.jl API.
 
 using Reagents
 using Reagents: CAS, Computed, Return, Read, PostCommit
