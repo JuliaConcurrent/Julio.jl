@@ -203,7 +203,9 @@ uuid = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
 [[deps.Reagents]]
 deps = ["Accessors", "CompositionsBase"]
-path = "/home/arakaki/.julia/dev/Reagents"
+git-tree-sha1 = "405dcba32ee9acbe97a1e0a2775db3abb0c8a9f1"
+repo-rev = "master"
+repo-url = "https://github.com/tkf/Reagents.jl"
 uuid = "88ee5918-12fa-4b16-93fd-f90ded6a9b8c"
 version = "0.0.1"
 
