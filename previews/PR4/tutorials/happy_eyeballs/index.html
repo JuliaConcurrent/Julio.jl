@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Example: Happy Eyeballs · Julio</title><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.039/juliamono-regular.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.11/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">Julio</a></span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Julio.jl</a></li><li><span class="tocitem">Tutorials</span><ul><li><a class="tocitem" href="../introduction/">Introduction</a></li><li><a class="tocitem" href="../select/">Select</a></li><li><a class="tocitem" href="../custom_select/">Custom select</a></li><li class="is-active"><a class="tocitem" href>Example: Happy Eyeballs</a></li><li><a class="tocitem" href="../search3/">Example: Google Search 3.0</a></li></ul></li><li><span class="tocitem">Reference</span><ul><li><a class="tocitem" href="../../reference/api/">API</a></li></ul></li><li><span class="tocitem">Explanation</span><ul><li><a class="tocitem" href="../../explanation/structured_concurrency/">Structured concurrencty</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Tutorials</a></li><li class="is-active"><a href>Example: Happy Eyeballs</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Example: Happy Eyeballs</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/tkf/Julio.jl/blob/master/examples/happy_eyeballs.jl" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>Julio.jl is still work-in-progress.</p></div></div><h1 id="Example:-Happy-Eyeballs"><a class="docs-heading-anchor" href="#Example:-Happy-Eyeballs">Example: Happy Eyeballs</a><a id="Example:-Happy-Eyeballs-1"></a><a class="docs-heading-anchor-permalink" href="#Example:-Happy-Eyeballs" title="Permalink"></a></h1><pre><code class="language-julia hljs">using Sockets
+using Julio
+using Test</code></pre><p>An implementation of Happy Eyeballs (RFC 8305) <a href="https://datatracker.ietf.org/doc/html/rfc8305">https://datatracker.ietf.org/doc/html/rfc8305</a></p><p>(TODO: verify)</p><pre><code class="language-julia hljs">function happy_eyeballs(host, port; delay = 0.3)
+    addrs = getalladdrinfo(host)
+    winner = Julio.Promise()
+    decided = nothing
+    allsockets = TCPSocket[]
+    Julio.withtaskgroup() do tg
+        issuccess = false
+        try
+            failureevents = []
+            for ip in addrs
+                failed = Julio.Promise{Nothing}()
+                push!(failureevents, failed)
+                socket = TCPSocket()
+                push!(allsockets, socket)
+                Julio.spawn!(tg) do
+                    try
+                        connect(socket, ip, port)
+                    catch err
+                        err isa Base.IOError || rethrow()
+                        failed[] = nothing
+                        return
+                    end
+                    Julio.tryput!(winner, socket)
+                end
+                Julio.select(
+                    (fetch, winner) =&gt; socket -&gt; begin
+                        decided = socket
+                        true
+                    end,
+                    (fetch, failed) =&gt; _ -&gt; false,
+                    (sleep, delay) =&gt; _ -&gt; false,
+                ) &amp;&amp; break
+            end
+            if decided === nothing
+                for failed in failureevents
+                    Julio.select(
+                        (fetch, winner) =&gt; socket -&gt; begin
+                            decided = socket
+                            true
+                        end,
+                        (fetch, failed) =&gt; _ -&gt; false,
+                    ) &amp;&amp; break
+                end
+            end
+            issuccess = true
+        finally
+            for socket in allsockets
+                if !issuccess || socket !== decided
+                    close(socket)
+                end
+            end
+        end
+    end
+    return decided
+end</code></pre><ul><li><a href="https://www.youtube.com/watch?v=oLkfnc_UMcE">Nathaniel J. Smith - Trio: Async concurrency for mere mortals - PyCon 2018 - YouTube</a></li><li><a href="https://250bpm.com/blog:139/">Two Approaches to Structured Concurrency - 250bpm</a></li></ul><pre><code class="language-julia hljs">function test_happy_eyeballs()
+    socket = happy_eyeballs(&quot;httpbin.org&quot;, 80)
+    try
+        @test socket isa TCPSocket
+        @test isopen(socket)
+    finally
+        close(socket)
+    end
+end</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../custom_select/">« Custom select</a><a class="docs-footer-nextpage" href="../search3/">Example: Google Search 3.0 »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.5 on <span class="colophon-date" title="Friday 27 August 2021 20:08">Friday 27 August 2021</span>. Using Julia version 1.7.0-beta3.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
