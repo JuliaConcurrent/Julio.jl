@@ -4,7 +4,6 @@ import DefineSingletons
 
 # I/O
 function open end
-function openall end
 
 # Task
 function withtaskgroup end
