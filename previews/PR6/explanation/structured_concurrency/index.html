@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Structured concurrencty · Julio</title><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.039/juliamono-regular.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.11/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">Julio</a></span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Julio.jl</a></li><li><span class="tocitem">Tutorials</span><ul><li><a class="tocitem" href="../../tutorials/introduction/">Introduction</a></li><li><a class="tocitem" href="../../tutorials/select/">Select</a></li><li><a class="tocitem" href="../../tutorials/happy_eyeballs/">Example: Happy Eyeballs</a></li><li><a class="tocitem" href="../../tutorials/search3/">Example: Google Search 3.0</a></li><li><a class="tocitem" href="../../tutorials/custom_select/">Advanced: Custom select</a></li></ul></li><li><span class="tocitem">Reference</span><ul><li><a class="tocitem" href="../../reference/api/">API</a></li></ul></li><li><span class="tocitem">Explanation</span><ul><li class="is-active"><a class="tocitem" href>Structured concurrencty</a><ul class="internal"><li><a class="tocitem" href="#black-box"><span>Black box rule</span></a></li><li><a class="tocitem" href="#Error-handling"><span>Error handling</span></a></li></ul></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Explanation</a></li><li class="is-active"><a href>Structured concurrencty</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Structured concurrencty</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/tkf/Julio.jl/blob/master/examples/structured_concurrency.jl" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>Julio.jl is still work-in-progress.</p></div></div><h1 id="Structured-concurrency"><a class="docs-heading-anchor" href="#Structured-concurrency">Structured concurrency</a><a id="Structured-concurrency-1"></a><a class="docs-heading-anchor-permalink" href="#Structured-concurrency" title="Permalink"></a></h1><pre><code class="language-julia hljs">using Julio
+using Test</code></pre><h2 id="black-box"><a class="docs-heading-anchor" href="#black-box">Black box rule</a><a id="black-box-1"></a><a class="docs-heading-anchor-permalink" href="#black-box" title="Permalink"></a></h2><p>In sequential programs, the side-effects of a function are &quot;done&quot; by the time the function returns <sup class="footnote-reference"><a id="citeref-closure" href="#footnote-closure">[closure]</a></sup>. However, many concurrent programming paradims do not let us assume such a simple but yet highly useful property. In <a href="https://vorpus.org/blog/notes-on-structured-concurrency-or-go-statement-considered-harmful/">Notes on structured concurrency, or: Go statement considered harmful — njs blog</a> (See also: <a href="https://www.youtube.com/watch?v=oLkfnc_UMcE">Trio: Async concurrency for mere mortals - PyCon 2018 - YouTube</a>), Nathaniel J. Smith called this property the <em>&quot;black box rule&quot;</em>.</p><h3 id="Programming-without-the-black-box-rule"><a class="docs-heading-anchor" href="#Programming-without-the-black-box-rule">Programming without the black box rule</a><a id="Programming-without-the-black-box-rule-1"></a><a class="docs-heading-anchor-permalink" href="#Programming-without-the-black-box-rule" title="Permalink"></a></h3><p>To demonstrate the pain comes with functions that does not follow the black box rule, let us consider the following simple function:</p><pre><code class="language-julia hljs">function channel_map_unstructured!(f, output, input; ntasks = Threads.nthreads())
+    for _ in 1:ntasks
+        Threads.@spawn for x in input
+            y = f(x)
+            put!(output, y)
+        end
+    end
+end</code></pre><p>This function <code>channel_map_unstructured!</code> does not follow the black box rule because it does not wait for the spawned tasks; i.e., these &quot;leaked&quot; tasks are keep mutating <code>output</code> and <code>input</code> even after <code>channel_map_unstructured!</code> returns.  Programs using such functions like this are very hard to understand.</p><pre><code class="language-julia hljs">function test_channel_map_unstructured()</code></pre><p>Suppose we need to combine the result of two kinds of &quot;computations&quot; into one output channel (<code>source_channel</code> is defined below):</p><pre><code class="language-julia hljs">    output = Channel()
+    channel_map_unstructured!(output, source_channel(1:100); ntasks = 10) do x
+        sleep(0.01)
+        2x
+    end
+    channel_map_unstructured!(output, source_channel(1:100); ntasks = 10) do x
+        sleep(0.01)
+        2x + 1
+    end</code></pre><p>It is tricky to accumulate the result reliably (another disadvantage of unstructured concurrencty).  For this demonstration, we can &quot;cheat&quot; since we know the size of the output.</p><pre><code class="language-julia hljs">    results = []
+    for _ in 1:200
+        push!(results, take!(output))
+    end
+    close(output)</code></pre><p>Ideally, the program order is reflected in the result. If it were the case, we should see even numbers first and then odd numbers. However, since <code>channel_map_unstructured!</code> violates the black box rule and the &quot;leaked&quot; tasks are keep adding results to the <code>output</code> channel, we can&#39;t understand the program by looking at the invocations of <code>channel_map_unstructured!</code>.</p><pre><code class="language-julia hljs">    @test_broken all(iseven, results[1:end÷2])
+    @test_broken all(isodd, results[end÷2+1:end])</code></pre><hr/><pre><code class="language-julia hljs">end</code></pre><p>(The above example uses a simple utility function <code>source_channel</code> for generating the input source:)</p><pre><code class="language-julia hljs">function source_channel(xs)
+    ch = Channel(Inf)
+    for x in xs
+        put!(ch, x)
+    end
+    close(ch)
+    return ch
+end</code></pre><h3 id="Julio-API-enforces-the-black-box-rule"><a class="docs-heading-anchor" href="#Julio-API-enforces-the-black-box-rule">Julio API enforces the black box rule</a><a id="Julio-API-enforces-the-black-box-rule-1"></a><a class="docs-heading-anchor-permalink" href="#Julio-API-enforces-the-black-box-rule" title="Permalink"></a></h3><p>Julio &quot;enforces&quot; the black box rule by providing API such that <code>Julio.spawn!</code> can be called only within a dynamical scope of <code>Julio.withtaskgroup</code>.  Thus, mechanically translating <code>channel_map_unstructured!</code> to use Julio API gives us a function that follows the black box rule.</p><pre><code class="language-julia hljs">function channel_map_structured!(f, output, input; ntasks = Threads.nthreads())
+    Julio.withtaskgroup() do tg
+        for _ in 1:ntasks
+            Julio.spawn!(tg) do
+                for x in input
+                    y = f(x)
+                    put!(output, y)
+                end
+            end
+        end
+    end
+end
+
+function test_channel_map_structured()
+    ie, eh = Julio.queue()
+    try
+        try
+            channel_map_structured!(ie, source_channel(1:100); ntasks = 10) do x
+                sleep(0.01)
+                2x
+            end
+            channel_map_structured!(ie, source_channel(1:100); ntasks = 10) do x
+                sleep(0.01)
+                2x + 1
+            end
+        finally
+            close(ie)
+        end
+        results = collect(eh)
+        @test all(iseven, results[1:end÷2])
+        @test all(isodd, results[end÷2+1:end])
+    finally
+        close(eh)
+    end
+end</code></pre><p>TODO: explain the nursery passing style</p><h2 id="Error-handling"><a class="docs-heading-anchor" href="#Error-handling">Error handling</a><a id="Error-handling-1"></a><a class="docs-heading-anchor-permalink" href="#Error-handling" title="Permalink"></a></h2><p>It is possible to satisfy the black box rule using the <code>Base</code> API:</p><pre><code class="language-julia hljs">function channel_map_base!(f, output, input; ntasks = Threads.nthreads())
+    @sync for _ in 1:ntasks
+        Threads.@spawn for x in input
+            y = f(x)
+            put!(output, y)
+        end
+    end
+end</code></pre><p>However, it is problematic when <code>f</code> throws. In the above example, the execution will not be finished until either all items in <code>input</code> are consumed or all tasks throw.</p><pre><code class="language-julia hljs">function error_on_10(x)
+    x == 10 &amp;&amp; error(&quot;error in one task&quot;)
+    sleep(0.01)
+    return x
+end
+
+function test_channel_map_base()
+    output = Channel(Inf)
+    try
+        channel_map_base!(error_on_10, output, source_channel(1:100); ntasks = 10)
+    catch
+    end
+    close(output)
+    results = collect(output)
+    push!(results, 10)
+    sort!(results)
+    @test results == 1:100
+end</code></pre><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p><code>Base.Experimental.@sync</code> can be used to throw an error as soon as the first task throws. However, it then leaks unfinished tasks; i.e., we can&#39;t assume the black box rule anymore.</p></div></div><h3 id="Manual-concurrent-error-handling-is-hard"><a class="docs-heading-anchor" href="#Manual-concurrent-error-handling-is-hard">Manual concurrent error handling is hard</a><a id="Manual-concurrent-error-handling-is-hard-1"></a><a class="docs-heading-anchor-permalink" href="#Manual-concurrent-error-handling-is-hard" title="Permalink"></a></h3><p>In general, it is hard to implement robust error handling using the <code>Base</code> API. Even though it is possible to do so case-by-case basis, there is no simple mechanism that the users can rely on.  For example, we can introduce an intermediate channel in the above example. This intermediate channel will be closed on error and hence unblock all the tasks. However, this strategy results in a subtle code that obscures the core logic:</p><pre><code class="language-julia hljs">function channel_map_base2!(f, output, input; ntasks = Threads.nthreads())
+    tmpch = Channel() do ch
+        for y in ch
+            put!(output, y)
+        end
+    end
+    try
+        @sync for _ in 1:ntasks
+            Threads.@spawn try
+                for x in input
+                    y = f(x)
+                    put!(tmpch, y)
+                end
+            catch
+                close(tmpch)
+                rethrow()
+            end
+        end
+    finally
+        close(tmpch)
+    end
+end
+
+function test_channel_map_base2()
+    output = Channel(Inf)
+    try
+        channel_map_base2!(error_on_10, output, source_channel(1:100); ntasks = 10)
+    catch
+    end
+    close(output)
+    results = collect(output)
+    @test length(results) &lt; 100
+end</code></pre><h3 id="Julio-automates-concurrent-error-handling"><a class="docs-heading-anchor" href="#Julio-automates-concurrent-error-handling">Julio automates concurrent error handling</a><a id="Julio-automates-concurrent-error-handling-1"></a><a class="docs-heading-anchor-permalink" href="#Julio-automates-concurrent-error-handling" title="Permalink"></a></h3><p>When using Julio API, errors are automatically propagated.  In fact, <code>channel_map_structured!</code> defined above already have the desired property:</p><pre><code class="language-julia hljs">function test_channel_map_structured_error()
+    ie, eh = Julio.queue()
+    try
+        try
+            channel_map_structured!(error_on_10, ie, source_channel(1:100); ntasks = 10)
+        catch
+        finally
+            close(ie)
+        end
+        results = collect(eh)
+        @test length(results) &lt; 100
+    finally
+        close(eh)
+    end
+end</code></pre><p>For more detailed controll on cancellation, see also: <a href="../../tutorials/select/#ex-bounding-search">Example: bounding search results</a></p><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p><section class="footnotes is-size-7"><ul><li class="footnote" id="footnote-closure"><a class="tag is-link" href="#citeref-closure">closure</a>Programming constructs such as closures, coroutines, and &quot;methods&quot; in class-based object oriented programming languages may be considered as mechanisms for &quot;resuming&quot; the side-effects. However, they have visible syntax (e.g., function call) for resuming the side-effect. Thus, these constructs still follow the black box rule.</li></ul></section></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../reference/api/">« API</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.5 on <span class="colophon-date" title="Saturday 28 August 2021 22:01">Saturday 28 August 2021</span>. Using Julia version 1.7.0-beta3.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
