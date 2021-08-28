@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Example: Google Search 3.0 · Julio</title><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.039/juliamono-regular.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.11/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">Julio</a></span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Julio.jl</a></li><li><span class="tocitem">Tutorials</span><ul><li><a class="tocitem" href="../introduction/">Introduction</a></li><li><a class="tocitem" href="../select/">Select</a></li><li><a class="tocitem" href="../happy_eyeballs/">Example: Happy Eyeballs</a></li><li class="is-active"><a class="tocitem" href>Example: Google Search 3.0</a></li><li><a class="tocitem" href="../custom_select/">Advanced: Custom select</a></li></ul></li><li><span class="tocitem">Reference</span><ul><li><a class="tocitem" href="../../reference/api/">API</a></li></ul></li><li><span class="tocitem">Explanation</span><ul><li><a class="tocitem" href="../../explanation/structured_concurrency/">Structured concurrencty</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Tutorials</a></li><li class="is-active"><a href>Example: Google Search 3.0</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Example: Google Search 3.0</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/tkf/Julio.jl/blob/master/examples/search3.jl" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>Julio.jl is still work-in-progress.</p></div></div><h1 id="Google-Search-3.0"><a class="docs-heading-anchor" href="#Google-Search-3.0">Google Search 3.0</a><a id="Google-Search-3.0-1"></a><a class="docs-heading-anchor-permalink" href="#Google-Search-3.0" title="Permalink"></a></h1><pre><code class="language-julia hljs">using Julio
+using Julio: Events</code></pre><p>This is an example taken from Rob Pike&#39;s 2012 talk <em>Go Concurrency Patterns</em>.</p><p>Avoid timeout (search engine replicas) <a href="https://talks.golang.org/2012/concurrency.slide#48">https://talks.golang.org/2012/concurrency.slide#48</a></p><p><code>replicas</code> is a tuple of callables with the signature <code>query -&gt; promise</code>; e.g., <code>replicas = webs = (web1, web2)</code>.</p><pre><code class="language-julia hljs">first_response!(ie, query::AbstractString, replicas::Tuple) =
+    put!(ie, Julio.select(Events.fetch.(query .|&gt; replicas)...))</code></pre><p>Google Search 3.0 <a href="https://talks.golang.org/2012/concurrency.slide#50">https://talks.golang.org/2012/concurrency.slide#50</a></p><pre><code class="language-julia hljs">function replicated_search(webs, images, videos)
+    query = &quot;Julio&quot;
+    results = String[]
+    ih, oh = Julio.channel()
+    open(oh) do oe
+        Julio.withtaskgroup() do tg
+            Julio.spawn!(first_response!, tg, ih, query, webs)
+            Julio.spawn!(first_response!, tg, ih, query, images)
+            Julio.spawn!(first_response!, tg, ih, query, videos)
+            Julio.spawn!(tg) do
+                Julio.sleep(0.08)
+                Julio.cancel!(tg)
+            end
+            append!(results, oe)
+            Julio.cancel!(tg)
+        end
+    end
+    return results
+end</code></pre><p>Setup code:</p><pre><code class="language-julia hljs">replicated_search_demo() = with_search_engines(replicated_search)
+
+function with_close_hook(f)
+    resources = []
+    function closing(r)
+        push!(resources, r)
+        return r
+    end
+    try
+        f(closing)
+    finally
+        foreach(close, resources)
+    end
+end
+
+function spawn_fakesearch!(tg, label, closing)
+    ih, oh = Julio.channel()
+    ie = closing(open(ih))
+    Julio.spawn!(tg, oh) do oe
+        for (query, reply) in oe
+            sleep(rand(0.01:0.01:0.1))
+            reply[] = &quot;$label result for $query&quot;
+        end
+    end
+    function request(query)
+        reply = Julio.Promise()
+        put!(ie, query =&gt; reply)
+        return reply
+    end
+    return request
+end
+
+function with_search_engines(f)
+    Julio.withtaskgroup() do tg
+        with_close_hook() do closing
+            web1 = spawn_fakesearch!(tg, &quot;web1&quot;, closing)
+            web2 = spawn_fakesearch!(tg, &quot;web2&quot;, closing)
+            image1 = spawn_fakesearch!(tg, &quot;image1&quot;, closing)
+            image2 = spawn_fakesearch!(tg, &quot;image2&quot;, closing)
+            video1 = spawn_fakesearch!(tg, &quot;video1&quot;, closing)
+            video2 = spawn_fakesearch!(tg, &quot;video2&quot;, closing)
+            f((web1, web2), (image1, image2), (video1, video2))
+        end
+    end
+end
+
+using Test
+
+function test_replicated_search_demo()
+    nok = 0
+    for _ in 1:10
+        results = replicated_search_demo()
+        nok += length(results) == 3
+    end
+    @test nok &gt; 0
+end</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../happy_eyeballs/">« Example: Happy Eyeballs</a><a class="docs-footer-nextpage" href="../custom_select/">Advanced: Custom select »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.5 on <span class="colophon-date" title="Saturday 28 August 2021 23:05">Saturday 28 August 2021</span>. Using Julia version 1.7.0-beta3.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

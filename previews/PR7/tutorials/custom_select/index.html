@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Advanced: Custom select · Julio</title><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.039/juliamono-regular.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.11/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">Julio</a></span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Julio.jl</a></li><li><span class="tocitem">Tutorials</span><ul><li><a class="tocitem" href="../introduction/">Introduction</a></li><li><a class="tocitem" href="../select/">Select</a></li><li><a class="tocitem" href="../happy_eyeballs/">Example: Happy Eyeballs</a></li><li><a class="tocitem" href="../search3/">Example: Google Search 3.0</a></li><li class="is-active"><a class="tocitem" href>Advanced: Custom select</a></li></ul></li><li><span class="tocitem">Reference</span><ul><li><a class="tocitem" href="../../reference/api/">API</a></li></ul></li><li><span class="tocitem">Explanation</span><ul><li><a class="tocitem" href="../../explanation/structured_concurrency/">Structured concurrencty</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Tutorials</a></li><li class="is-active"><a href>Advanced: Custom select</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Advanced: Custom select</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/tkf/Julio.jl/blob/master/examples/custom_select.jl" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>Julio.jl is still work-in-progress.</p></div></div><h1 id="Selecting-on-custom-events"><a class="docs-heading-anchor" href="#Selecting-on-custom-events">Selecting on custom events</a><a id="Selecting-on-custom-events-1"></a><a class="docs-heading-anchor-permalink" href="#Selecting-on-custom-events" title="Permalink"></a></h1><p>Julio.jl is built on top of Reagents.jl, a framework for writing programs with complex nonblocking algorithms and synchronizations.  In fact, <code>Julia.select</code> is a thin wrapper on top of the choice combinator <code>|</code> defined in Reagents.jl. Therefore, it is possible to define custom synchronization events using Reagents.jl API.</p><pre><code class="language-julia hljs">using Reagents
+using Reagents: CAS, Computed, Return, Read, PostCommit
+using Julio
+using Julio: Events
+using Test</code></pre><p>Let us define a &quot;leaky&quot; &quot;broadcasting&quot; channel; i.e., &quot;broadcasting&quot; in the sense that a <code>put!</code> can be <code>take!</code>n by multiple tasks and &quot;leaky&quot; in the sense that the items will be lost if there are no receiver tasks executing <code>take!</code> while the sender is executing <code>put!</code>.</p><pre><code class="language-julia hljs">struct BroadcastChannel{T,Receivers}
+    eltype::Val{T}
+    lck::Julio.Lock
+    receivers::Receivers
+end
+
+function BroadcastChannel{T}() where {T}
+    receivers = typeof(Julio.Promise{T}())[]
+    lck = Julio.Lock()
+    return BroadcastChannel(Val(T), lck, receivers)
+end</code></pre><p>(We use a lock-based implementation to keep the example simple. It should also be possible to use some nonblocking algorithms.)</p><p>The receiver requests an item simply by posting a <code>Julio.Promise</code>:</p><p>(TODO: make it work without touching <code>Julio.Internal</code>)</p><pre><code class="language-julia hljs">Base.take!(bc::BroadcastChannel{T}) where {T} = Julio.Internal.apply(take!, bc)::T
+function Julio.Internal.event(::typeof(take!), bc::BroadcastChannel{T}) where {T}
+    (; lck, receivers) = bc
+    p = Julio.Promise{T}()
+    lock(lck) do
+        filter!(isopen, receivers)
+        push!(receivers, p)
+    end
+    return Reagents.WithNack() do nack
+        # Cleanup in case this event is not selected:
+        Reagents.dissolve(nack ⨟ PostCommit(_ -&gt; close(p)); once = true)
+        Return(nothing)
+    end ⨟ Events.fetch(p)
+end</code></pre><p>An item is sent to all the receivers registered at the time <code>put!</code> is called:</p><pre><code class="language-julia hljs">function Base.put!(bc::BroadcastChannel{T}, x) where {T}
+    (; lck, receivers) = bc
+    x = convert(T, x)
+    lock(lck) do
+        for p in receivers
+            Julio.tryput!(p, x)  # tryput! instead of put! to ignore closed promises
+        end
+        empty!(receivers)
+    end
+end</code></pre><p>Demo:</p><pre><code class="language-julia hljs">function test_broadcastchannel(; ntasks = 4)
+    bc = BroadcastChannel{Int}()
+    done = Julio.Promise{Nothing}()
+    Julio.withtaskgroup() do tg
+        tasks = map(1:ntasks) do _
+            Julio.spawn!(tg) do
+                local items = Int[]
+                while true
+                    Julio.select(
+                        (fetch, done) =&gt; Returns(true),
+                        (take!, bc) =&gt; x -&gt; begin
+                            push!(items, x)
+                            false
+                        end,
+                    ) &amp;&amp; break
+                end
+                return items
+            end
+        end
+        try
+            for x in 1:2^10
+                put!(bc, x)
+            end
+        finally
+            done[] = nothing
+        end
+        for t in tasks
+            items = fetch(t)
+            @test all(&gt;(0), diff(items))
+        end
+    end
+end</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../search3/">« Example: Google Search 3.0</a><a class="docs-footer-nextpage" href="../../reference/api/">API »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.5 on <span class="colophon-date" title="Saturday 28 August 2021 23:05">Saturday 28 August 2021</span>. Using Julia version 1.7.0-beta3.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
