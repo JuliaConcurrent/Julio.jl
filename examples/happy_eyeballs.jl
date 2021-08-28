@@ -24,8 +24,7 @@ function happy_eyeballs(host, port; delay = 0.3)
                 socket = TCPSocket()
                 push!(allsockets, socket)
                 Julio.spawn!(tg) do
-                    # Quick check for `Julio.iscancelled()` path:           #src
-                    # ip == addrs[end] || sleep(1)                          #src
+                    inject_latencies(ip == addrs[end])                      #src
                     try
                         connect(socket, ip, port)
                     catch err
@@ -88,3 +87,8 @@ function test_happy_eyeballs()
         close(socket)
     end
 end
+
+# For reproducing "TCPSocket is not in initialization state" error:         #src
+@isdefined(inject_latencies) || begin                                       #src
+    inject_latencies(_) = nothing                                           #src
+end                                                                         #src
