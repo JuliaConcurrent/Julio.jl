@@ -16,6 +16,7 @@ function happy_eyeballs(host, port; delay = 0.3)
     allsockets = TCPSocket[]
     Julio.withtaskgroup() do tg
         issuccess = false
+        closing = Threads.Atomic{Bool}(false)
         try
             failureevents = []
             for ip in addrs
@@ -31,7 +32,7 @@ function happy_eyeballs(host, port; delay = 0.3)
                         if err isa Base.IOError
                             failed[] = nothing
                             return
-                        elseif Julio.iscancelled()
+                        elseif closing[]
                             return
                         end
                         rethrow()
@@ -60,6 +61,7 @@ function happy_eyeballs(host, port; delay = 0.3)
             end
             issuccess = true
         finally
+            closing[] = true
             for socket in allsockets
                 if !issuccess || socket !== decided
                     close(socket)
