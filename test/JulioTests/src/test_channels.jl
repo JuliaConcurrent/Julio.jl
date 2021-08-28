@@ -4,7 +4,7 @@ using ArgCheck
 using Julio
 using Julio.Internal: @trace
 using Test
-using ..Utils: random_sleep, trywait
+using ..Utils: random_sleep, trywait, ⊏
 
 function test_after_close()
     @testset for f in [Julio.stack, Julio.queue]
@@ -212,6 +212,29 @@ function test_channel_open_many_scoped2()
         close(send_endpoint)
         close(receive_endpoint)
     end
+end
+
+function sample_method_hint(io::IO, f, args...)
+    @nospecialize f args
+    Julio.Internal.on_channel_handle_method_error(io, MethodError(f, args), map(typeof, args), nothing)
+end
+
+function sample_method_hints(io::IO = stdout)
+    send_endpoint, receive_endpoint = Julio.channel()
+
+    printstyled(io, "Trying to take from a send endpointr:"; bold = true)
+    println(io)
+    sample_method_hint(io, take!, send_endpoint)
+
+    printstyled(io, "Trying to put on a receive endpoint:"; bold = true)
+    println(io)
+    sample_method_hint(io, put!, receive_endpoint)
+end
+
+function test_method_hints()
+    str = sprint(sample_method_hints)
+    @test "take! requires" ⊏ str
+    @test "put! requires" ⊏ str
 end
 
 end  # module
