@@ -16,6 +16,7 @@ function happy_eyeballs(host, port; delay = 0.3)
     allsockets = TCPSocket[]
     Julio.withtaskgroup() do tg
         issuccess = false
+        closing = Threads.Atomic{Bool}(false)
         try
             failureevents = []
             for ip in addrs
@@ -24,15 +25,14 @@ function happy_eyeballs(host, port; delay = 0.3)
                 socket = TCPSocket()
                 push!(allsockets, socket)
                 Julio.spawn!(tg) do
-                    # Quick check for `Julio.iscancelled()` path:           #src
-                    # ip == addrs[end] || sleep(1)                          #src
+                    inject_latencies(ip == addrs[end])                      #src
                     try
                         connect(socket, ip, port)
                     catch err
                         if err isa Base.IOError
                             failed[] = nothing
                             return
-                        elseif Julio.iscancelled()
+                        elseif closing[]
                             return
                         end
                         rethrow()
@@ -61,6 +61,7 @@ function happy_eyeballs(host, port; delay = 0.3)
             end
             issuccess = true
         finally
+            closing[] = true
             for socket in allsockets
                 if !issuccess || socket !== decided
                     close(socket)
@@ -88,3 +89,8 @@ function test_happy_eyeballs()
         close(socket)
     end
 end
+
+# For reproducing "TCPSocket is not in initialization state" error:         #src
+@isdefined(inject_latencies) || begin                                       #src
+    inject_latencies(_) = nothing                                           #src
+end                                                                         #src
