@@ -3,9 +3,6 @@
 Run a function `f` with arguments `args` inside a task managed by the task group
 `tg`.
 
-Input and output handles of channel passed via `args` are automatically opened
-before scheduling the task and closed before the task ends.
-
 See [`Julio.withtaskgroup`](@ref).
 
 ## Example
@@ -13,15 +10,15 @@ See [`Julio.withtaskgroup`](@ref).
 ```julia
 julia> using Julio
 
-julia> ih, oh = Julio.queue();
+julia> send_endpoint, receive_endpoint = Julio.queue();
 
 julia> Julio.withtaskgroup() do tg
-           Julio.spawn!(tg, ih, 111) do ie, x  # opens `ih`
-               put!(ie, x)
+           Julio.spawn!(tg, 111) do x
+               put!(send_endpoint, x)
            end
-           Julio.spawn!(tg, oh) do oe  # opens `oh`
-               @show take!(oe)
+           Julio.spawn!(tg) do
+               @show take!(receive_endpoint)
            end
        end;
-take!(oe) = 111
+take!(receive_endpoint) = 111
 ```

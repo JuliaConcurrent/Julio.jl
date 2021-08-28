@@ -20,12 +20,20 @@ first_response!(ie, query::AbstractString, replicas::Tuple) =
 function replicated_search(webs, images, videos)
     query = "Julio"
     results = String[]
-    ih, oh = Julio.channel()
-    open(oh) do oe
+    ie, oe = Julio.channel()
+    try
         Julio.withtaskgroup() do tg
-            Julio.spawn!(first_response!, tg, ih, query, webs)
-            Julio.spawn!(first_response!, tg, ih, query, images)
-            Julio.spawn!(first_response!, tg, ih, query, videos)
+            Julio.spawn!(tg) do
+                try
+                    Julio.withtaskgroup() do tgs
+                        Julio.spawn!(first_response!, tgs, ie, query, webs)
+                        Julio.spawn!(first_response!, tgs, ie, query, images)
+                        Julio.spawn!(first_response!, tgs, ie, query, videos)
+                    end
+                finally
+                    close(ie)
+                end
+            end
             Julio.spawn!(tg) do
                 Julio.sleep(0.08)
                 Julio.cancel!(tg)
@@ -33,6 +41,8 @@ function replicated_search(webs, images, videos)
             append!(results, oe)
             Julio.cancel!(tg)
         end
+    finally
+        close(oe)
     end
     return results
 end
@@ -55,12 +65,16 @@ function with_close_hook(f)
 end
 
 function spawn_fakesearch!(tg, label, closing)
-    ih, oh = Julio.channel()
-    ie = closing(open(ih))
-    Julio.spawn!(tg, oh) do oe
-        for (query, reply) in oe
-            sleep(rand(0.01:0.01:0.1))
-            reply[] = "$label result for $query"
+    ie, oe = Julio.channel()
+    closing(ie)
+    Julio.spawn!(tg) do
+        try
+            for (query, reply) in oe
+                sleep(rand(0.01:0.01:0.1))
+                reply[] = "$label result for $query"
+            end
+        finally
+            close(oe)
         end
     end
     function request(query)

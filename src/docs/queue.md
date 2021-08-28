@@ -1,3 +1,3 @@
-    Julio.queue(T::Type = Any) -> (input_handle, output_handle)
+    Julio.queue(T::Type = Any) -> (send_endpoint, receive_endpoint)
 
 See [`Julio.channel`](@ref).

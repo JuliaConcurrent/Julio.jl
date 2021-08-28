@@ -29,42 +29,28 @@ end
 function test_channel_verbose()
     Julio.withtaskgroup() do tg
         #=
-        A channel can be created using `Julio.channel`. It returns the "handles"
-        for input (sender) and output (receiver).
+        A channel can be created using `Julio.channel`. It returns the
+        *endpoints* for the send and receive sides.
         =#
-        input_handle, output_handle = Julio.channel()
-        #=
-        Both ends of the channel must be `open`ed before using it.
-        =#
-        open(output_handle) do output_endpoint
-            #=
-            Furthermore, when shared across multiple tasks, the channel must be
-            opened before spawn and closed inside the task.  The channel must be
-            opened before spawn to avoid the race condition; i.e., if it were
-            opened inside a task, the other endpoint may be accessed before the
-            task starts.  The channel has to be closed to unblock other
-            endpoints.
-            =#
-            let input_endpoint = open(input_handle)  # open before spawn
-                Julio.spawn!(tg) do
-                    try
-                        for i in 1:10
-                            put!(input_endpoint, i)
-                        end
-                    finally
-                        close(input_endpoint)  # close inside the child task
+        send_endpoint, receive_endpoint = Julio.channel()
+        try
+            Julio.spawn!(tg) do
+                try
+                    for i in 1:10
+                        put!(send_endpoint, i)
                     end
+                finally
+                    close(send_endpoint)  # signaling that there are no more items
                 end
             end
 
             #=
-            Observe that both input and ouptut handles are opened above before
-            the first `spawn!`. This is required when using unbuffered channel.
-
-            The following `collect(output_endpoint)` continues until the child
-            task calls `close(input_endpoint)`.
+            The following `collect(receive_endpoint)` continues until the child
+            task calls `close(send_endpoint)`.
             =#
-            @test collect(output_endpoint) == 1:10
+            @test collect(receive_endpoint) == 1:10
+        finally
+            close(receive_endpoint)
         end
         #=
         ---
@@ -72,123 +58,43 @@ function test_channel_verbose()
     end
 end
 
-# The above pattern is very flexible but rather too verbose.  To make it more
-# concise, `Julio.spawn!` automates the above pattern.
-
-function test_channel_open_on_spawn()
-    Julio.withtaskgroup() do tg
-        input_handle, output_handle = Julio.channel()
-        open(output_handle) do output_endpoint
-
-            #=
-            "Resource handles" passed to `Julia.spawn!` are automatically opened
-            just before spawning the task and closed when the task ends:
-            =#
-            Julio.spawn!(tg, input_handle) do input_endpoint
-                for i in 1:10
-                    put!(input_endpoint, i)
-                end
-            end
-            #=
-            ---
-            =#
-
-            @test collect(output_endpoint) == 1:10
-        end
-    end
-end
-
-# The input and output handles can be opened multiple times.  The handle is
-# considered closed when all opened endpoints  are closed.
-
-function test_channel_open_many()
-    Julio.withtaskgroup() do tg
-        input_handle, output_handle = Julio.channel()
-        open(output_handle) do output_endpoint
-
-            Julio.spawn!(tg, input_handle) do input_endpoint
-                put!(input_endpoint, 1)
-            end
-            Julio.spawn!(tg, input_handle) do input_endpoint
-                put!(input_endpoint, 2)
-            end
-            Julio.spawn!(tg, input_handle) do input_endpoint
-                put!(input_endpoint, 3)
-            end
-
-            @test sort!(collect(output_endpoint)) == 1:3
-        end
-    end
-end
-
-# Another approach for opening and closing the channel is to use one task group
-# for each endpoint:
+# Use a task group to wait for multiple tasks before closing the endpoint:
 
 function test_channel_open_many_scoped()
-    input_handle, output_handle = Julio.channel()
-    open(output_handle) do output_endpoint
-        local task
-        Julio.withtaskgroup() do tg0
-            open(input_handle) do input_endpoint
-                task = Julio.spawn!(tg0) do
-                    sort!(collect(output_endpoint))
-                end
-                Julio.withtaskgroup() do tg1
-                    for i in 1:10
-                        Julio.spawn!(tg1) do
-                            put!(input_endpoint, i)
-                        end
+    send_endpoint, receive_endpoint = Julio.channel()
+    local task
+    Julio.withtaskgroup() do tg0
+        task = Julio.spawn!(tg0) do
+            try
+                sort!(collect(receive_endpoint))
+            finally
+                close(receive_endpoint)
+            end
+        end
+        try
+            Julio.withtaskgroup() do tg1
+                for i in 1:10
+                    Julio.spawn!(tg1) do
+                        put!(send_endpoint, i)
                     end
                 end
             end
+        finally
+            close(send_endpoint)
         end
-        @test fetch(task) == 1:10
     end
-end
-
-# Note:
-#
-# * The "consumer" task running `sort!(collect(output_endpoint))` must be
-#   spawned inside the `open(input_handle) do` block. Otherwise, there may be no
-#   writer when `collect` is started. If there is no writer, `output_endpoint`
-#   is treated as empty.
-#
-# * The "producer" task group `tg1` should be inside of the `open(input_handle)
-#   do` block in this style since we cannot close the channel until all the
-#   tasks using it finish.
-#
-# * The "consumer" task group `tg0` should be *outside* of the
-#   `open(input_handle) do` block since `close` on `input_handle` stops the
-#   iteration of `output_endpoint`.
-#
-# Although this example shows that the scope-based resource handling (`open(...)
-# do` etc.) plays nicely with `Julio.withtaskgroup`, it's easier to let
-# `Julio.spawn!` open the resource (if supported) as shown in the earlier
-# examples.
-
-# When it is not required or desired to associate the scopes and the resources
-# (e.g., the channel is not used for signaling the end of the processing)
-# `Julio.openchannel` can be used.
-
-function test_openchannel()
-    input_endpoint, output_endpoint = Julio.openchannel()
-    Julio.withtaskgroup() do tg
-        Julio.spawn!(tg) do
-            put!(input_endpoint, 111)
-        end
-        @test take!(output_endpoint) == 111
-    end
+    @test fetch(task) == 1:10
 end
 
 # Note that `Julio.channel` is always unbuffered. Use `Julio.queue` and
 # `Julio.stack` for buffered channels.
 
-function test_openqueue()
-    input_endpoint, output_endpoint = Julio.openqueue()
-    put!(input_endpoint, 111)
-    put!(input_endpoint, 222)
-    @test take!(output_endpoint) == 111
-    @test take!(output_endpoint) == 222
+function test_queue()
+    send_endpoint, receive_endpoint = Julio.queue()
+    put!(send_endpoint, 111)
+    put!(send_endpoint, 222)
+    @test take!(receive_endpoint) == 111
+    @test take!(receive_endpoint) == 222
 end
 
 # ## Timeout
@@ -197,11 +103,9 @@ end
 # triggered whenever the code is blocked by a Julia API.
 
 function test_timeout()
-    input_handle, output_handle = Julio.queue()
-    open(input_handle) do input_endpoint
-        Julio.withtimeout(0.1) do
-            put!(input_endpoint, nothing)  # never completes
-        end
+    send_endpoint, receive_endpoint = Julio.channel()
+    Julio.withtimeout(0.1) do
+        put!(send_endpoint, nothing)  # never completes
     end
 end
 
@@ -219,16 +123,20 @@ function produce!(input)
 end
 
 function test_cancellation()
-    input_handle, output_handle = Julio.channel()
-    open(output_handle) do output_endpoint
+    send_endpoint, receive_endpoint = Julio.channel()
+    try
         task = nothing
         err = try
             Julio.withtaskgroup() do tg
-                task = Julio.spawn!(tg, input_handle) do input_endpoint
-                    produce!(input_endpoint)
+                task = Julio.spawn!(tg) do
+                    try
+                        produce!(send_endpoint)
+                    finally
+                        close(send_endpoint)
+                    end
                 end
                 for i in 1:3
-                    @test take!(output_endpoint) == i
+                    @test take!(receive_endpoint) == i
                 end
                 error("cancel")
             end
@@ -238,6 +146,8 @@ function test_cancellation()
         end
         @test err isa Exception
         @test istaskdone(task)
+    finally
+        close(receive_endpoint)
     end
 end
 
@@ -248,7 +158,7 @@ end
 # Cancellation of Julio tasks can also be triggered manually.
 
 function test_cancel_scope()
-    _, output_endpoint = Julio.openchannel()
+    _, receive_endpoint = Julio.channel()
     #=
     The parts of code that are cancelled together can be managed by
     `Julio.cancelscope`:
@@ -266,7 +176,7 @@ function test_cancel_scope()
             method is invoked.
             =#
             open(scope) do
-                take!(output_endpoint)  # blocks
+                take!(receive_endpoint)  # blocks
             end
             #=
             ---
@@ -279,9 +189,9 @@ function test_cancel_scope()
             =#
             Julio.withtaskgroup(scope) do tg1
                 Julio.spawn!(tg1) do
-                    take!(output_endpoint)  # blocks
+                    take!(receive_endpoint)  # blocks
                 end
-                take!(output_endpoint)  # blocks
+                take!(receive_endpoint)  # blocks
             end
             #=
             ---
@@ -293,7 +203,8 @@ function test_cancel_scope()
         Julio.cancel!(scope)
         #=
         Since the cancellation signal unblocks all the blocking calls
-        `take!(output_endpoint)`, this code reliably synchronizes all sub-tasks.
+        `take!(receive_endpoint)`, this code reliably synchronizes all
+        sub-tasks.
         =#
     end  # Julio.withtaskgroup() do tg0
 end
@@ -334,8 +245,8 @@ function test_select()
         #=
         Suppose that we have two channels, but only one of them are available:
         =#
-        ie1, oe1 = Julio.openchannel()
-        ie2, oe2 = Julio.openchannel()
+        ie1, oe1 = Julio.channel()
+        ie2, oe2 = Julio.channel()
         Julio.spawn!(tg) do
             put!(ie1, 111)
         end

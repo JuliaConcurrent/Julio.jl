@@ -34,8 +34,10 @@ end
 
 function test_exclusivity()
     lck = Julio.Lock()
-    Julio.withchannel() do i1, o1
-        Julio.withqueue() do i2, o2
+    i1, o1 = Julio.channel()
+    i2, o2 = Julio.channel()
+    begin
+        begin
             Julio.withtaskgroup() do tg
                 Julio.spawn!(tg) do
                     lock(lck) do

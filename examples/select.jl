@@ -13,8 +13,8 @@ function test_simple_select()
     To demonstrate how `Julio.select` works, suppose that we have multiple
     queues and waiting for an element from them.
     =#
-    qin1, qout1 = Julio.openqueue()  # input/output handles for the first queue
-    qin2, qout2 = Julio.openqueue()  # input/output handles for the second queue
+    qin1, qout1 = Julio.queue()  # input/output endpoints for the first queue
+    qin2, qout2 = Julio.queue()  # input/output endpoints for the second queue
     #=
     Suppose there is an element in the second queue:
     =#
@@ -46,7 +46,7 @@ function test_mixed_select()
     #=
     It supports, for example, unbuffered channel:
     =#
-    chi, cho = Julio.openchannel()
+    chi, cho = Julio.channel()
     #=
     ...and read/write on `IO` objects such as a pipe:
     =#
@@ -146,17 +146,25 @@ end
 
 function test_channel_filter()
     Julio.withtaskgroup() do tg
-        ih1, oh1 = Julio.channel()
-        ih2, oh2 = Julio.channel()
-        Julio.openall(oh1, oh2) do oe1, oe2
-            Julio.spawn!(tg, ih1) do ie1
+        ie1, oe1 = Julio.channel()
+        ie2, oe2 = Julio.channel()
+        Julio.spawn!(tg) do
+            try
                 for i in 1:15
                     put!(ie1, i)
                 end
+            finally
+                close(ie1)
             end
-            Julio.spawn!(tg, ih2, oh1) do ie2, oe1
+        end
+        Julio.spawn!(tg) do
+            try
                 channel_filter!(isodd, ie2, oe1, 3; ntasks = 2)
+            finally
+                close(ie2)
             end
+        end
+        try
             out2 = collect(oe2)
             out1 = collect(oe1)
             sort!(out2)
@@ -164,6 +172,9 @@ function test_channel_filter()
             @test length(out2) >= 3  # `channel_filter!` produced at least 3 elements
             @test out2 == (1:length(out2)) .* 2 .- 1
             @test out1 == out1[1]:out1[end]
+        finally
+            close(oe1)
+            close(oe2)
         end
     end
 end

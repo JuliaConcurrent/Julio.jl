@@ -25,20 +25,6 @@ function stack end
 function queue end
 function clone end
 
-struct _OpenChannel{factory} end
-
-# TODO: don't put factories in the type parameter (improve DefineSingletons)
-DefineSingletons.@def_singleton openchannel = _OpenChannel{channel}()
-DefineSingletons.@def_singleton openstack = _OpenChannel{stack}()
-DefineSingletons.@def_singleton openqueue = _OpenChannel{queue}()
-
-struct _ChannelContext{factory} end
-
-# TODO: don't put factories in the type parameter (improve DefineSingletons)
-DefineSingletons.@def_singleton withchannel = _ChannelContext{channel}()
-DefineSingletons.@def_singleton withstack = _ChannelContext{stack}()
-DefineSingletons.@def_singleton withqueue = _ChannelContext{queue}()
-
 function maybetake! end
 function tryput! end
 function maybefetch end
@@ -82,7 +68,6 @@ include("tracing.jl")
 include("core.jl")
 include("promises.jl")
 include("base.jl")
-include("watch.jl")
 include("stacks.jl")
 include("queues.jl")
 include("blocking.jl")

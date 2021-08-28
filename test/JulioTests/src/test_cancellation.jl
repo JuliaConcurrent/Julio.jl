@@ -17,9 +17,9 @@ function test_onclose()
 end
 
 function test_shield()
-    ie1, oe1 = Julio.openchannel()
-    ie2, oe2 = Julio.openchannel()
-    ie3, oe3 = Julio.openchannel()
+    ie1, oe1 = Julio.channel()
+    ie2, oe2 = Julio.channel()
+    ie3, oe3 = Julio.channel()
     local task
     Julio.withtaskgroup() do tg
         task = Julio.spawn!(tg) do
@@ -81,7 +81,7 @@ end
 
 function test_iscancelled()
     local a, b, c
-    ie, oe = Julio.openchannel()
+    ie, oe = Julio.channel()
     Julio.withtaskgroup() do tg
         Julio.spawn!(tg) do
             a = Julio.iscancelled()
