@@ -38,11 +38,16 @@ function iscancelled end
 # DefineSingletons.@def_singleton var"try" isa Function
 DefineSingletons.@def_singleton Events
 
+macro SharedResource end
+
 module Internal
 
+import ..Julio: @SharedResource
 using ..Julio: Julio
+
 using ArgCheck: @argcheck
 using ContextVariablesX
+using ContextManagers: ContextManagers
 using Reagents
 using Reagents:
     Block,

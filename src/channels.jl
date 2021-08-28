@@ -6,6 +6,7 @@ taking(::AlwaysEmpty) = Return(Block())
 
 abstract type ChannelEndpoint{T} end
 Base.eltype(::Type{ChannelEndpoint{T}}) where {T} = T
+ContextManagers.maybeenter(ch::ChannelEndpoint) = ch
 
 struct SendEndpoint{T,Data,Send} <: ChannelEndpoint{T}
     eltype::Val{T}
