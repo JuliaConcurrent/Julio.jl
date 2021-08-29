@@ -4,12 +4,20 @@ using Julio: Events</code></pre><p>This is an example taken from Rob Pike&#39;s 
     put!(ie, Julio.select(Events.fetch.(query .|&gt; replicas)...))</code></pre><p>Google Search 3.0 <a href="https://talks.golang.org/2012/concurrency.slide#50">https://talks.golang.org/2012/concurrency.slide#50</a></p><pre><code class="language-julia hljs">function replicated_search(webs, images, videos)
     query = &quot;Julio&quot;
     results = String[]
-    ih, oh = Julio.channel()
-    open(oh) do oe
+    ie, oe = Julio.channel()
+    try
         Julio.withtaskgroup() do tg
-            Julio.spawn!(first_response!, tg, ih, query, webs)
-            Julio.spawn!(first_response!, tg, ih, query, images)
-            Julio.spawn!(first_response!, tg, ih, query, videos)
+            Julio.spawn!(tg) do
+                try
+                    Julio.withtaskgroup() do tgs
+                        Julio.spawn!(first_response!, tgs, ie, query, webs)
+                        Julio.spawn!(first_response!, tgs, ie, query, images)
+                        Julio.spawn!(first_response!, tgs, ie, query, videos)
+                    end
+                finally
+                    close(ie)
+                end
+            end
             Julio.spawn!(tg) do
                 Julio.sleep(0.08)
                 Julio.cancel!(tg)
@@ -17,6 +25,8 @@ using Julio: Events</code></pre><p>This is an example taken from Rob Pike&#39;s 
             append!(results, oe)
             Julio.cancel!(tg)
         end
+    finally
+        close(oe)
     end
     return results
 end</code></pre><p>Setup code:</p><pre><code class="language-julia hljs">replicated_search_demo() = with_search_engines(replicated_search)
@@ -35,12 +45,16 @@ function with_close_hook(f)
 end
 
 function spawn_fakesearch!(tg, label, closing)
-    ih, oh = Julio.channel()
-    ie = closing(open(ih))
-    Julio.spawn!(tg, oh) do oe
-        for (query, reply) in oe
-            sleep(rand(0.01:0.01:0.1))
-            reply[] = &quot;$label result for $query&quot;
+    ie, oe = Julio.channel()
+    closing(ie)
+    Julio.spawn!(tg) do
+        try
+            for (query, reply) in oe
+                sleep(rand(0.01:0.01:0.1))
+                reply[] = &quot;$label result for $query&quot;
+            end
+        finally
+            close(oe)
         end
     end
     function request(query)
@@ -74,4 +88,4 @@ function test_replicated_search_demo()
         nok += length(results) == 3
     end
     @test nok &gt; 0
-end</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../happy_eyeballs/">« Example: Happy Eyeballs</a><a class="docs-footer-nextpage" href="../custom_select/">Advanced: Custom select »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.5 on <span class="colophon-date" title="Saturday 28 August 2021 23:12">Saturday 28 August 2021</span>. Using Julia version 1.7.0-beta3.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+end</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../happy_eyeballs/">« Example: Happy Eyeballs</a><a class="docs-footer-nextpage" href="../custom_select/">Advanced: Custom select »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.5 on <span class="colophon-date" title="Sunday 29 August 2021 00:18">Sunday 29 August 2021</span>. Using Julia version 1.7.0-beta3.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
