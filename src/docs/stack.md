@@ -1,3 +1,3 @@
-    Julio.stack(T::Type = Any) -> (input_handle, output_handle)
+    Julio.stack(T::Type = Any) -> (send_endpoint, receive_endpoint)
 
 See [`Julio.channel`](@ref).

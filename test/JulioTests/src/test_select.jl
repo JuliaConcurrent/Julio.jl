@@ -8,8 +8,10 @@ include("../../../examples/select.jl")
 function test_select_take()
     output = nothing
     selected = nothing
-    Julio.withchannel(Int) do ie1, _oe1
-        Julio.withstack(Int) do ie2, oe2
+    ie1, _ = Julio.channel(Int)
+    ie2, oe2 = Julio.stack(Int)
+    begin
+        begin
             put!(ie2, 222)
             Julio.select(
                 (put!, ie1, 111) => _ -> begin
@@ -28,7 +30,8 @@ end
 
 function test_select_cmd()
     Julio.open(`echo "hello"`) do io
-        Julio.withchannel() do _, o1
+        _, o1 = Julio.channel()
+        begin
             selected = Julio.select(
                 Events.readline(io; keep = true),  # should win
                 (take!, o1),

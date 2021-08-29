@@ -23,11 +23,11 @@ specified, `identity` is used instead.
 using Julio: Events
 
 Julio.select(
-    (Julio.tryput!, input_endpoint, item),
-    (take!, output_endpoint) => item -> begin
+    (Julio.tryput!, send_endpoint, item),
+    (take!, receive_endpoint) => item -> begin
         println("Got: ", item)
     end,
-    Event.put!(another_input_endpoint, item),
+    Event.put!(another_send_endpoint, item),
     Event.readline(io; keep = true) => line -> begin
         println("Read line: ", line)
     end,

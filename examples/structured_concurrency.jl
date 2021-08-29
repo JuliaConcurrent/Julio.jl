@@ -110,9 +110,9 @@ function channel_map_structured!(f, output, input; ntasks = Threads.nthreads())
 end
 
 function test_channel_map_structured()
-    ih, oh = Julio.queue()
-    open(oh) do eh
-        open(ih) do ie
+    ie, eh = Julio.queue()
+    try
+        try
             channel_map_structured!(ie, source_channel(1:100); ntasks = 10) do x
                 sleep(0.01)
                 2x
@@ -121,10 +121,14 @@ function test_channel_map_structured()
                 sleep(0.01)
                 2x + 1
             end
+        finally
+            close(ie)
         end
         results = collect(eh)
         @test all(iseven, results[1:end÷2])
         @test all(isodd, results[end÷2+1:end])
+    finally
+        close(eh)
     end
 end
 
@@ -220,16 +224,18 @@ end
 # `channel_map_structured!` defined above already have the desired property:
 
 function test_channel_map_structured_error()
-    ih, oh = Julio.queue()
-    open(oh) do eh
+    ie, eh = Julio.queue()
+    try
         try
-            open(ih) do ie
-                channel_map_structured!(error_on_10, ie, source_channel(1:100); ntasks = 10)
-            end
+            channel_map_structured!(error_on_10, ie, source_channel(1:100); ntasks = 10)
         catch
+        finally
+            close(ie)
         end
         results = collect(eh)
         @test length(results) < 100
+    finally
+        close(eh)
     end
 end
 

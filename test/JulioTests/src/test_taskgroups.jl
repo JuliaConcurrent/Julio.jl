@@ -21,7 +21,7 @@ function test_cancel_with_single_main_error()
     err_cause = ErrorException("error in main")
     err = try
         Julio.withtaskgroup() do tg
-            _ie, oe = Julio.openchannel()
+            _ie, oe = Julio.channel()
             Julio.spawn!(tg) do
                 take!(oe)  # should be unblocked by cancellation
             end
