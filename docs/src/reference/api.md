@@ -9,4 +9,5 @@ Main._BANNER_
 
 ```@autodocs
 Modules = [Julio]
+Order   = [:constant, :type, :function, :macro]
 ```
