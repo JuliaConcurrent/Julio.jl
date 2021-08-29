@@ -5,6 +5,7 @@ version = "0.1.0-DEV"
 
 [deps]
 ArgCheck = "dce04be8-c92d-5529-be00-80e4d2c0e197"
+ContextManagers = "51ca0b03-0667-4ad4-bb9a-29a7d42ecc1f"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 Julio = "90b429c0-bbb2-41ec-aa7f-233732bc5b96"
 Reagents = "88ee5918-12fa-4b16-93fd-f90ded6a9b8c"

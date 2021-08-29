@@ -124,15 +124,11 @@ function Julio.spawn!(@nospecialize(f), tg::TaskGroup, args...)
     token = tg.scope.token
 
     # Auto-open ("bind") resources to this task.
-    resources = []
+    contexts = []
     opened_args = map(args) do x
-        if isresource(x)
-            y = open(x)
-            push!(resources, y)
-            y
-        else
-            x
-        end
+        c = @something(ContextManagers.maybeenter(x), return x)
+        push!(contexts, c)
+        return ContextManagers.value(c)
     end
 
     function spawn_wrapper()
@@ -140,7 +136,11 @@ function Julio.spawn!(@nospecialize(f), tg::TaskGroup, args...)
             # Since taskgroup may not be nested, we need to reset the dynamic
             # scope context:
             apply_f_args() = f(opened_args...)
-            with_context(apply_f_args, CANCELLATION_TOKEN => token)
+            ans = with_context(apply_f_args, CANCELLATION_TOKEN => token)
+            while !isempty(contexts)
+                ContextManagers.exit(pop!(contexts))
+            end
+            ans
         catch err
             @debug(
                 "`spawn_wrapper`",
@@ -150,9 +150,13 @@ function Julio.spawn!(@nospecialize(f), tg::TaskGroup, args...)
                 f,
             )
             Julio.cancel!(token)
+            while !isempty(contexts)
+                try
+                    ContextManagers.exit(pop!(contexts), err)
+                catch
+                end
+            end
             rethrow()
-        finally
-            foreach(close, resources)
         end
     end
     task = Task(spawn_wrapper)

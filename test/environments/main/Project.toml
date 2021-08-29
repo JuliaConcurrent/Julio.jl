@@ -1,4 +1,5 @@
 [deps]
+ContextManagers = "51ca0b03-0667-4ad4-bb9a-29a7d42ecc1f"
 Julio = "90b429c0-bbb2-41ec-aa7f-233732bc5b96"
 JulioTests = "0aa1c9e4-4aed-40bd-8113-938f83d0ae35"
 Reagents = "88ee5918-12fa-4b16-93fd-f90ded6a9b8c"

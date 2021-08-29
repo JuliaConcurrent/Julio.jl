@@ -12,6 +12,7 @@ include("test_structured_concurrency.jl")
 include("test_search3.jl")
 include("test_happy_eyeballs.jl")
 include("test_custom_select.jl")
+include("test_contextmanagers.jl")
 include("test_doctest.jl")
 
 end  # module JulioTests

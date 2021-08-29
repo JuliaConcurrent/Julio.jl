@@ -2,6 +2,7 @@
 
 using Julio
 using Julio: Events
+using ContextManagers: @with, SharedResource
 
 # This is an example taken from Rob Pike's 2012 talk *Go Concurrency Patterns*.
 
@@ -23,16 +24,10 @@ function replicated_search(webs, images, videos)
     ie, oe = Julio.channel()
     try
         Julio.withtaskgroup() do tg
-            Julio.spawn!(tg) do
-                try
-                    Julio.withtaskgroup() do tgs
-                        Julio.spawn!(first_response!, tgs, ie, query, webs)
-                        Julio.spawn!(first_response!, tgs, ie, query, images)
-                        Julio.spawn!(first_response!, tgs, ie, query, videos)
-                    end
-                finally
-                    close(ie)
-                end
+            @with(handle = SharedResource(ie)) do
+                Julio.spawn!(first_response!, tg, handle, query, webs)
+                Julio.spawn!(first_response!, tg, handle, query, images)
+                Julio.spawn!(first_response!, tg, handle, query, videos)
             end
             Julio.spawn!(tg) do
                 Julio.sleep(0.08)

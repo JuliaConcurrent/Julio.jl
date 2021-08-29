@@ -141,7 +141,3 @@ function Julio.oncancel(f, args...; kwargs...)
 end
 
 Julio.cancel!(handle::DissolveHandle) = Reagents.clear!(handle)
-
-abstract type Resource end
-isresource(::Resource) = true
-isresource(::Any) = false

@@ -5,6 +5,7 @@ version = "0.0.2"
 
 [deps]
 ArgCheck = "dce04be8-c92d-5529-be00-80e4d2c0e197"
+ContextManagers = "51ca0b03-0667-4ad4-bb9a-29a7d42ecc1f"
 ContextVariablesX = "6add18c4-b38d-439d-96f6-d6bc489c04c5"
 DefineSingletons = "244e2a9f-e319-4986-a169-4d1fe445cd52"
 Reagents = "88ee5918-12fa-4b16-93fd-f90ded6a9b8c"
