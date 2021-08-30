@@ -26,7 +26,7 @@ end
 
 # ## Channels
 
-function test_channel_verbose()
+function test_channel()
     Julio.withtaskgroup() do tg
         #=
         A channel can be created using `Julio.channel`. It returns the
@@ -49,9 +49,10 @@ function test_channel_verbose()
         end
 
         #=
-        The `receive_endpoint` supports `take!`. It also supports the iteration
-        protocol.  The following `collect(receive_endpoint)` continues until the
-        child task calls `close(send_endpoint)`.
+        The `receive_endpoint` supports `take!`. It can be called from arbitrary
+        tasks. It also supports the iteration protocol.  The following
+        `collect(receive_endpoint)` continues until the child task calls
+        `close(send_endpoint)`.
         =#
         try
             @test collect(receive_endpoint) == 1:10
