@@ -10,7 +10,7 @@ using Test</code></pre><p><code>Julio.select</code> can be used for executing ex
             selected = item
         end,
     )
-    @test selected == 222</code></pre><hr/><pre><code class="language-julia hljs">end</code></pre><h2 id="Selecting-an-arbitrary-event"><a class="docs-heading-anchor" href="#Selecting-an-arbitrary-event">Selecting an arbitrary event</a><a id="Selecting-an-arbitrary-event-1"></a><a class="docs-heading-anchor-permalink" href="#Selecting-an-arbitrary-event" title="Permalink"></a></h2><p><code>Julio.select</code> can also be used with various events.</p><pre><code class="language-julia hljs">function test_mixed_select()</code></pre><p>It supports, for example, unbuffered channel:</p><pre><code class="language-julia hljs">    chi, cho = Julio.channel()</code></pre><p>...and read/write on <code>IO</code> objects such as a pipe:</p><pre><code class="language-julia hljs">    Julio.open(`echo &quot;hello&quot;`) do output</code></pre><p>...and acquiring locks:</p><pre><code class="language-julia hljs">        lck = Julio.Lock()</code></pre><p>When the <code>Base</code> API <code>$f</code> has keyword arguments, you can use <code>Julio.Events.$f</code> to create an event.  Note that <code>($f, args...)</code> is equivalent to <code>Julio.Events.$f(args...)</code>.</p><pre><code class="language-julia hljs">        selected = nothing
+    @test selected == 222</code></pre><hr/><pre><code class="language-julia hljs">end</code></pre><h2 id="Selecting-an-arbitrary-event"><a class="docs-heading-anchor" href="#Selecting-an-arbitrary-event">Selecting an arbitrary event</a><a id="Selecting-an-arbitrary-event-1"></a><a class="docs-heading-anchor-permalink" href="#Selecting-an-arbitrary-event" title="Permalink"></a></h2><p><code>Julio.select</code> can also be used with various events.</p><pre><code class="language-julia hljs">function test_mixed_select()</code></pre><p>It supports, for example, unbuffered channel:</p><pre><code class="language-julia hljs">    send_endpoint, _ = Julio.channel()</code></pre><p>...and read/write on <code>IO</code> objects such as a pipe:</p><pre><code class="language-julia hljs">    Julio.open(`echo &quot;hello&quot;`) do output</code></pre><p>...and acquiring locks:</p><pre><code class="language-julia hljs">        lck = Julio.Lock()</code></pre><p>When the <code>Base</code> API <code>$f</code> has keyword arguments, you can use <code>Julio.Events.$f</code> to create an event.  Note that <code>($f, args...)</code> is equivalent to <code>Julio.Events.$f(args...)</code>.</p><pre><code class="language-julia hljs">        selected = nothing
         Julio.select(
             Events.readline(output; keep = true) =&gt; item -&gt; begin
                 selected = item
@@ -19,7 +19,7 @@ using Test</code></pre><p><code>Julio.select</code> can be used for executing ex
                 unlock(lck)
                 selected = :lock
             end,
-            (put!, chi, 1) =&gt; _ -&gt; begin
+            (put!, send_endpoint, 1) =&gt; _ -&gt; begin
                 selected = :put_1
             end,
         )</code></pre><p>In the above example, since the <code>output</code> pipe and the <code>lock</code> are both ready, <code>Julio.select</code> can select any one of them. However, since there is no other task <code>take!</code>ing the element from the channel <code>cho</code>, the <code>put!</code> event can not be selected.</p><pre><code class="language-julia hljs">        @test selected in (&quot;hello\n&quot;, :lock)</code></pre><p>If <code>Events.lock(lck)</code> was selected, the <code>output</code> is not consumed:</p><pre><code class="language-julia hljs">        if selected === :lock
@@ -53,35 +53,35 @@ function channel_filter!(f, output, input, minitems; ntasks = 4 * Threads.nthrea
     end
 end</code></pre><p>In the above example, we use <code>(Julio.maybetake!, input)</code> event instead of <code>(take!, input)</code> event.  This is for handling the case <code>input</code> is closed. That is to say, <code>m === nothing</code> if <code>input</code> is closed or <code>tryput!(done, nothing)</code> has been executed.</p><pre><code class="language-julia hljs">function test_channel_filter()
     Julio.withtaskgroup() do tg
-        ie1, oe1 = Julio.channel()
-        ie2, oe2 = Julio.channel()
+        send_endpoint1, receive_endpoint1 = Julio.channel()
+        send_endpoint2, receive_endpoint2 = Julio.channel()
         Julio.spawn!(tg) do
             try
                 for i in 1:15
-                    put!(ie1, i)
+                    put!(send_endpoint1, i)
                 end
             finally
-                close(ie1)
+                close(send_endpoint1)
             end
         end
         Julio.spawn!(tg) do
             try
-                channel_filter!(isodd, ie2, oe1, 3; ntasks = 2)
+                channel_filter!(isodd, send_endpoint2, receive_endpoint1, 3; ntasks = 2)
             finally
-                close(ie2)
+                close(send_endpoint2)
             end
         end
         try
-            out2 = collect(oe2)
-            out1 = collect(oe1)
+            out2 = collect(receive_endpoint2)
+            out1 = collect(receive_endpoint1)
             sort!(out2)
             sort!(out1)
             @test length(out2) &gt;= 3  # `channel_filter!` produced at least 3 elements
             @test out2 == (1:length(out2)) .* 2 .- 1
             @test out1 == out1[1]:out1[end]
         finally
-            close(oe1)
-            close(oe2)
+            close(receive_endpoint1)
+            close(receive_endpoint2)
         end
     end
-end</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../introduction/">« Introduction</a><a class="docs-footer-nextpage" href="../happy_eyeballs/">Example: Happy Eyeballs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.5 on <span class="colophon-date" title="Monday 30 August 2021 06:04">Monday 30 August 2021</span>. Using Julia version 1.7.0-beta3.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+end</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../introduction/">« Introduction</a><a class="docs-footer-nextpage" href="../happy_eyeballs/">Example: Happy Eyeballs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.5 on <span class="colophon-date" title="Monday 30 August 2021 06:20">Monday 30 August 2021</span>. Using Julia version 1.7.0-beta3.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
