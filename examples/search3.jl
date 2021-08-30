@@ -12,8 +12,8 @@ using ContextManagers: @with, SharedResource
 # `replicas` is a tuple of callables with the signature `query -> promise`;
 # e.g., `replicas = webs = (web1, web2)`.
 
-first_response!(ie, query::AbstractString, replicas::Tuple) =
-    put!(ie, Julio.select(Events.fetch.(query .|> replicas)...))
+first_response!(send_endpoint, query::AbstractString, replicas::Tuple) =
+    put!(send_endpoint, Julio.select(Events.fetch.(query .|> replicas)...))
 
 # Google Search 3.0
 # <https://talks.golang.org/2012/concurrency.slide#50>
@@ -21,10 +21,10 @@ first_response!(ie, query::AbstractString, replicas::Tuple) =
 function replicated_search(webs, images, videos)
     query = "Julio"
     results = String[]
-    ie, oe = Julio.channel()
+    send_endpoint, receive_endpoint = Julio.channel()
     try
         Julio.withtaskgroup() do tg
-            @with(handle = SharedResource(ie)) do
+            @with(handle = SharedResource(send_endpoint)) do
                 Julio.spawn!(first_response!, tg, handle, query, webs)
                 Julio.spawn!(first_response!, tg, handle, query, images)
                 Julio.spawn!(first_response!, tg, handle, query, videos)
@@ -33,11 +33,11 @@ function replicated_search(webs, images, videos)
                 Julio.sleep(0.08)
                 Julio.cancel!(tg)
             end
-            append!(results, oe)
+            append!(results, receive_endpoint)
             Julio.cancel!(tg)
         end
     finally
-        close(oe)
+        close(receive_endpoint)
     end
     return results
 end
@@ -60,21 +60,21 @@ function with_close_hook(f)
 end
 
 function spawn_fakesearch!(tg, label, closing)
-    ie, oe = Julio.channel()
-    closing(ie)
+    send_endpoint, receive_endpoint = Julio.channel()
+    closing(send_endpoint)
     Julio.spawn!(tg) do
         try
-            for (query, reply) in oe
+            for (query, reply) in receive_endpoint
                 sleep(rand(0.01:0.01:0.1))
                 reply[] = "$label result for $query"
             end
         finally
-            close(oe)
+            close(receive_endpoint)
         end
     end
     function request(query)
         reply = Julio.Promise()
-        put!(ie, query => reply)
+        put!(send_endpoint, query => reply)
         return reply
     end
     return request
