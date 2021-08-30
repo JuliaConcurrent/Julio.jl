@@ -33,24 +33,30 @@ function test_channel_verbose()
         *endpoints* for the send and receive sides.
         =#
         send_endpoint, receive_endpoint = Julio.channel()
-        try
-            Julio.spawn!(tg) do
-                try
-                    for i in 1:10
-                        put!(send_endpoint, i)
-                    end
-                finally
-                    close(send_endpoint)  # signaling that there are no more items
-                end
-            end
 
-            #=
-            The following `collect(receive_endpoint)` continues until the child
-            task calls `close(send_endpoint)`.
-            =#
+        #=
+        The `send_endpoint` supports `put!` function. It can be called from
+        arbitrary tasks safely.
+        =#
+        Julio.spawn!(tg) do
+            try
+                for i in 1:10
+                    put!(send_endpoint, i)
+                end
+            finally
+                close(send_endpoint)  # signaling that there are no more items
+            end
+        end
+
+        #=
+        The `receive_endpoint` supports `take!`. It also supports the iteration
+        protocol.  The following `collect(receive_endpoint)` continues until the
+        child task calls `close(send_endpoint)`.
+        =#
+        try
             @test collect(receive_endpoint) == 1:10
         finally
-            close(receive_endpoint)
+            close(receive_endpoint)  # signaling the child task if something went wrong
         end
         #=
         ---
