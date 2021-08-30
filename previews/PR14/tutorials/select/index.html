@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Select · Julio</title><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.039/juliamono-regular.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.11/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">Julio</a></span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Julio.jl</a></li><li><span class="tocitem">Tutorials</span><ul><li><a class="tocitem" href="../introduction/">Introduction</a></li><li class="is-active"><a class="tocitem" href>Select</a><ul class="internal"><li><a class="tocitem" href="#Selecting-a-queue"><span>Selecting a queue</span></a></li><li><a class="tocitem" href="#Selecting-an-arbitrary-event"><span>Selecting an arbitrary event</span></a></li><li><a class="tocitem" href="#ex-bounding-search"><span>Example: bounding search results</span></a></li></ul></li><li><a class="tocitem" href="../happy_eyeballs/">Example: Happy Eyeballs</a></li><li><a class="tocitem" href="../search3/">Example: Google Search 3.0</a></li><li><a class="tocitem" href="../dying_philosopher/">Example: Dying philosopher</a></li><li><a class="tocitem" href="../custom_select/">Advanced: Custom select</a></li></ul></li><li><span class="tocitem">Reference</span><ul><li><a class="tocitem" href="../../reference/api/">API</a></li></ul></li><li><span class="tocitem">Explanation</span><ul><li><a class="tocitem" href="../../explanation/structured_concurrency/">Structured concurrencty</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Tutorials</a></li><li class="is-active"><a href>Select</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Select</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/tkf/Julio.jl/blob/master/examples/select.jl" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>Julio.jl is still work-in-progress.</p></div></div><h1 id="man-select"><a class="docs-heading-anchor" href="#man-select">Select</a><a id="man-select-1"></a><a class="docs-heading-anchor-permalink" href="#man-select" title="Permalink"></a></h1><pre><code class="language-julia hljs">using Julio: Julio, Events
+using Test</code></pre><p><code>Julio.select</code> can be used for executing exactly one ready <em>event</em> from a set of events.</p><h2 id="Selecting-a-queue"><a class="docs-heading-anchor" href="#Selecting-a-queue">Selecting a queue</a><a id="Selecting-a-queue-1"></a><a class="docs-heading-anchor-permalink" href="#Selecting-a-queue" title="Permalink"></a></h2><pre><code class="language-julia hljs">function test_simple_select()</code></pre><p>To demonstrate how <code>Julio.select</code> works, suppose that we have multiple queues and waiting for an element from them.</p><pre><code class="language-julia hljs">    qin1, qout1 = Julio.queue()  # input/output endpoints for the first queue
+    qin2, qout2 = Julio.queue()  # input/output endpoints for the second queue</code></pre><p>Suppose there is an element in the second queue:</p><pre><code class="language-julia hljs">    put!(qin2, 222)</code></pre><p>Then waiting on <code>take!</code> event of an empty queue and a nonempty queue does not block. It executes the <code>take!</code> event on the nonempty queue:</p><pre><code class="language-julia hljs">    selected = nothing
+    Julio.select(
+        (take!, qout1) =&gt; item -&gt; begin
+            selected = item
+        end,
+        (take!, qout2) =&gt; item -&gt; begin
+            selected = item
+        end,
+    )
+    @test selected == 222</code></pre><hr/><pre><code class="language-julia hljs">end</code></pre><h2 id="Selecting-an-arbitrary-event"><a class="docs-heading-anchor" href="#Selecting-an-arbitrary-event">Selecting an arbitrary event</a><a id="Selecting-an-arbitrary-event-1"></a><a class="docs-heading-anchor-permalink" href="#Selecting-an-arbitrary-event" title="Permalink"></a></h2><p><code>Julio.select</code> can also be used with various events.</p><pre><code class="language-julia hljs">function test_mixed_select()</code></pre><p>It supports, for example, unbuffered channel:</p><pre><code class="language-julia hljs">    send_endpoint, _ = Julio.channel()</code></pre><p>...and read/write on <code>IO</code> objects such as a pipe:</p><pre><code class="language-julia hljs">    Julio.open(`echo &quot;hello&quot;`) do output</code></pre><p>...and acquiring locks:</p><pre><code class="language-julia hljs">        lck = Julio.Lock()</code></pre><p>When the <code>Base</code> API <code>$f</code> has keyword arguments, you can use <code>Julio.Events.$f</code> to create an event.  Note that <code>($f, args...)</code> is equivalent to <code>Julio.Events.$f(args...)</code>.</p><pre><code class="language-julia hljs">        selected = nothing
+        Julio.select(
+            Events.readline(output; keep = true) =&gt; item -&gt; begin
+                selected = item
+            end,
+            Events.lock(lck) =&gt; _ -&gt; begin
+                unlock(lck)
+                selected = :lock
+            end,
+            (put!, send_endpoint, 1) =&gt; _ -&gt; begin
+                selected = :put_1
+            end,
+        )</code></pre><p>In the above example, since the <code>output</code> pipe and the <code>lock</code> are both ready, <code>Julio.select</code> can select any one of them. However, since there is no other task <code>take!</code>ing the element from the channel <code>cho</code>, the <code>put!</code> event can not be selected.</p><pre><code class="language-julia hljs">        @test selected in (&quot;hello\n&quot;, :lock)</code></pre><p>If <code>Events.lock(lck)</code> was selected, the <code>output</code> is not consumed:</p><pre><code class="language-julia hljs">        if selected === :lock
+            @test readline(output) == &quot;hello&quot;
+        end</code></pre><hr/><pre><code class="language-julia hljs">    end
+end</code></pre><h2 id="ex-bounding-search"><a class="docs-heading-anchor" href="#ex-bounding-search">Example: bounding search results</a><a id="ex-bounding-search-1"></a><a class="docs-heading-anchor-permalink" href="#ex-bounding-search" title="Permalink"></a></h2><p>Suppose we need to move at least <code>minitems</code> items from one channel to another while filtering them using a predicate function <code>f</code>. Furthermore, we don&#39;t want to loose any items. That is to say, once an item is taken from the input channel, it must be put into the output channel (unless <code>f</code> evaluates to false).  Note that the we cannot use the <a href="../introduction/#man-cancel-scope">cancel scope</a> (naively) due to the last requirement; i.e., it is not correct to cancel the task when it&#39;s blocked while putting the item to the output channel. While we can still use the cancel scope by surrounding post-<code>take!</code> code in a <code>Julio.shield</code> block, the folowing code demonstrates more straightforward approach based on <code>Julio.select</code>.</p><p>To setup cancellation specific to one event (<code>take!</code>), we can use explicit &quot;cancellation token&quot; and combine it with the original event.</p><pre><code class="language-julia hljs">using Julio: maybetake!, tryput!
+
+function channel_filter!(f, output, input, minitems; ntasks = 4 * Threads.nthreads())
+    nitems = Threads.Atomic{Int}(0)
+    done = Julio.Promise{Nothing}()  # cancellation token
+    Julio.withtaskgroup() do tg
+        for _ in 1:ntasks
+            Julio.spawn!(tg) do
+                while true
+                    m = Julio.select(
+                        (fetch, done) =&gt; Returns(nothing),  # return nothing when done
+                        (maybetake!, input),  # return Some(x) if we took x
+                    )
+                    x = @something(m, break)  # break if done
+                    if f(x)
+                        put!(output, x)
+                        # If enough items have been sent, signal other tasks to finish.
+                        if Threads.atomic_add!(nitems, 1) + 1 &gt;= minitems
+                            tryput!(done, nothing)
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    end
+end</code></pre><p>In the above example, we use <code>(Julio.maybetake!, input)</code> event instead of <code>(take!, input)</code> event.  This is for handling the case <code>input</code> is closed. That is to say, <code>m === nothing</code> if <code>input</code> is closed or <code>tryput!(done, nothing)</code> has been executed.</p><pre><code class="language-julia hljs">function test_channel_filter()
+    Julio.withtaskgroup() do tg
+        send_endpoint1, receive_endpoint1 = Julio.channel()
+        send_endpoint2, receive_endpoint2 = Julio.channel()
+        Julio.spawn!(tg) do
+            try
+                for i in 1:15
+                    put!(send_endpoint1, i)
+                end
+            finally
+                close(send_endpoint1)
+            end
+        end
+        Julio.spawn!(tg) do
+            try
+                channel_filter!(isodd, send_endpoint2, receive_endpoint1, 3; ntasks = 2)
+            finally
+                close(send_endpoint2)
+            end
+        end
+        try
+            out2 = collect(receive_endpoint2)
+            out1 = collect(receive_endpoint1)
+            sort!(out2)
+            sort!(out1)
+            @test length(out2) &gt;= 3  # `channel_filter!` produced at least 3 elements
+            @test out2 == (1:length(out2)) .* 2 .- 1
+            @test out1 == out1[1]:out1[end]
+        finally
+            close(receive_endpoint1)
+            close(receive_endpoint2)
+        end
+    end
+end</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../introduction/">« Introduction</a><a class="docs-footer-nextpage" href="../happy_eyeballs/">Example: Happy Eyeballs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.5 on <span class="colophon-date" title="Monday 30 August 2021 06:13">Monday 30 August 2021</span>. Using Julia version 1.7.0-beta3.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
