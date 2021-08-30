@@ -17,6 +17,7 @@ PAGES = [
         "Select" => "tutorials/select.md",
         "Example: Happy Eyeballs" => "tutorials/happy_eyeballs.md",
         "Example: Google Search 3.0" => "tutorials/search3.md",
+        "Example: Dying philosopher" => "tutorials/dying_philosopher.md",
         "Advanced: Custom select" => "tutorials/custom_select.md",
         # ...
     ],
