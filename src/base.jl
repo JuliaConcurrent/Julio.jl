@@ -22,7 +22,16 @@ function Julio.cancel!(token::CancellationTokenType)
     tryputting(token)(Cancelled())
 end
 
-withopen(f, scope::CancelScope) = with_context(f, CANCELLATION_TOKEN => scope.token)
+function withopen(f, scope::CancelScope)
+    try
+        with_context(f, CANCELLATION_TOKEN => scope.token)
+    catch err
+        if iscancelled(err) && is_token_cancelled(scope.token) && !Julio.iscancelled()
+            return
+        end
+        rethrow()
+    end
+end
 
 # Unfortunately, other `Base.open` methods uses `Function`...
 Base.open(f::Function, scope::CancelScope) = withopen(f, scope)
