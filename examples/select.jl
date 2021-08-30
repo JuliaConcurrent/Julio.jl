@@ -46,7 +46,7 @@ function test_mixed_select()
     #=
     It supports, for example, unbuffered channel:
     =#
-    chi, cho = Julio.channel()
+    send_endpoint, _ = Julio.channel()
     #=
     ...and read/write on `IO` objects such as a pipe:
     =#
@@ -72,7 +72,7 @@ function test_mixed_select()
                 unlock(lck)
                 selected = :lock
             end,
-            (put!, chi, 1) => _ -> begin
+            (put!, send_endpoint, 1) => _ -> begin
                 selected = :put_1
             end,
         )
@@ -146,35 +146,35 @@ end
 
 function test_channel_filter()
     Julio.withtaskgroup() do tg
-        ie1, oe1 = Julio.channel()
-        ie2, oe2 = Julio.channel()
+        send_endpoint1, receive_endpoint1 = Julio.channel()
+        send_endpoint2, receive_endpoint2 = Julio.channel()
         Julio.spawn!(tg) do
             try
                 for i in 1:15
-                    put!(ie1, i)
+                    put!(send_endpoint1, i)
                 end
             finally
-                close(ie1)
+                close(send_endpoint1)
             end
         end
         Julio.spawn!(tg) do
             try
-                channel_filter!(isodd, ie2, oe1, 3; ntasks = 2)
+                channel_filter!(isodd, send_endpoint2, receive_endpoint1, 3; ntasks = 2)
             finally
-                close(ie2)
+                close(send_endpoint2)
             end
         end
         try
-            out2 = collect(oe2)
-            out1 = collect(oe1)
+            out2 = collect(receive_endpoint2)
+            out1 = collect(receive_endpoint1)
             sort!(out2)
             sort!(out1)
             @test length(out2) >= 3  # `channel_filter!` produced at least 3 elements
             @test out2 == (1:length(out2)) .* 2 .- 1
             @test out1 == out1[1]:out1[end]
         finally
-            close(oe1)
-            close(oe2)
+            close(receive_endpoint1)
+            close(receive_endpoint2)
         end
     end
 end

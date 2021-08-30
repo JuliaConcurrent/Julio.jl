@@ -251,10 +251,10 @@ function test_select()
         #=
         Suppose that we have two channels, but only one of them are available:
         =#
-        ie1, oe1 = Julio.channel()
-        ie2, oe2 = Julio.channel()
+        send_endpoint1, receive_endpoint1 = Julio.channel()
+        send_endpoint2, receive_endpoint2 = Julio.channel()
         Julio.spawn!(tg) do
-            put!(ie1, 111)
+            put!(send_endpoint1, 111)
         end
 
         #=
@@ -263,15 +263,15 @@ function test_select()
         =#
         selected = nothing
         Julio.select(
-            (take!, oe1) => item -> begin
-                selected = item  # result of `take!(oe1)`
+            (take!, receive_endpoint1) => item -> begin
+                selected = item  # result of `take!(receive_endpoint1)`
             end,
-            (take!, oe2) => item -> begin
-                selected = item  # result of `take!(oe2)` (unreachable)
+            (take!, receive_endpoint2) => item -> begin
+                selected = item  # result of `take!(receive_endpoint2)` (unreachable)
             end,
         )
         #=
-        Since only `oe1` has a task at the input endpoint, `take!(oe1)` is
+        Since only `receive_endpoint1` has a task at the input endpoint, `take!(receive_endpoint1)` is
         chosen:
         =#
         @test selected == 111
