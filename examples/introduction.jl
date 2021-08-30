@@ -271,8 +271,8 @@ function test_select()
             end,
         )
         #=
-        Since only `receive_endpoint1` has a task at the input endpoint, `take!(receive_endpoint1)` is
-        chosen:
+        Since only `receive_endpoint1` has a task at the input endpoint,
+        `take!(receive_endpoint1)` is chosen:
         =#
         @test selected == 111
         #=
