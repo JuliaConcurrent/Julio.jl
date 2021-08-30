@@ -79,4 +79,28 @@ function test_repeat(; ntasks = Threads.nthreads() * 4, nrepeat = 1000)
     @test true
 end
 
+function test_cancel()
+    scope = Julio.cancelscope()
+    sept, rept = Julio.channel()
+    lck = Julio.Lock()
+    Julio.withtaskgroup() do tg
+        Julio.spawn!(tg) do
+            open(scope) do
+                lock(lck) do
+                    put!(sept, 111)
+                    put!(sept, 222)
+                end
+            end
+        end
+        @test take!(rept) == 111
+        Julio.spawn!(tg) do
+            lock(lck) do
+                put!(sept, 333)
+            end
+        end
+        Julio.cancel!(scope)
+        @test take!(rept) == 333
+    end
+end
+
 end  # module

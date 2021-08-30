@@ -58,6 +58,8 @@ function Base.unlock(l::Lock)
         return
     end
     l.owner[] = nothing
-    Reagents.trysync!(l.notify)
+    Julio.shield() do
+        Reagents.trysync!(l.notify)
+    end
     return
 end
