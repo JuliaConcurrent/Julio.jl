@@ -110,26 +110,22 @@ function channel_map_structured!(f, output, input; ntasks = Threads.nthreads())
 end
 
 function test_channel_map_structured()
-    send_endpoint, eh = Julio.queue()
+    send_endpoint, receive_endpoint = Julio.queue()
     try
-        try
-            channel_map_structured!(send_endpoint, source_channel(1:100); ntasks = 10) do x
-                sleep(0.01)
-                2x
-            end
-            channel_map_structured!(send_endpoint, source_channel(1:100); ntasks = 10) do x
-                sleep(0.01)
-                2x + 1
-            end
-        finally
-            close(send_endpoint)
+        channel_map_structured!(send_endpoint, source_channel(1:100); ntasks = 10) do x
+            sleep(0.01)
+            2x
         end
-        results = collect(eh)
-        @test all(iseven, results[1:end÷2])
-        @test all(isodd, results[end÷2+1:end])
+        channel_map_structured!(send_endpoint, source_channel(1:100); ntasks = 10) do x
+            sleep(0.01)
+            2x + 1
+        end
     finally
-        close(eh)
+        close(send_endpoint)
     end
+    results = collect(receive_endpoint)
+    @test all(iseven, results[1:end÷2])
+    @test all(isodd, results[end÷2+1:end])
 end
 
 # TODO: explain the nursery passing style
@@ -224,19 +220,20 @@ end
 # `channel_map_structured!` defined above already have the desired property:
 
 function test_channel_map_structured_error()
-    send_endpoint, eh = Julio.queue()
+    send_endpoint, receive_endpoint = Julio.queue()
     try
-        try
-            channel_map_structured!(error_on_10, send_endpoint, source_channel(1:100); ntasks = 10)
-        catch
-        finally
-            close(send_endpoint)
-        end
-        results = collect(eh)
-        @test length(results) < 100
+        channel_map_structured!(
+            error_on_10,
+            send_endpoint,
+            source_channel(1:100);
+            ntasks = 10,
+        )
+    catch
     finally
-        close(eh)
+        close(send_endpoint)
     end
+    results = collect(receive_endpoint)
+    @test length(results) < 100
 end
 
 # For more detailed controll on cancellation, see also:
