@@ -3,6 +3,7 @@ module JulioTests
 include("utils.jl")
 include("test_taskgroups.jl")
 include("test_channels.jl")
+include("test_promise.jl")
 include("test_io.jl")
 include("test_locks.jl")
 include("test_select.jl")

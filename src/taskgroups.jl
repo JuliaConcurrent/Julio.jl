@@ -78,6 +78,12 @@ end
 `waitall!` is the "background" child task manager.  It handles child task
 completion without waiting for the completion of the main body of
 `Julio.withtaskgroup`, to clearing `tg.tasks` as soon as possible.
+
+TODO: Instead of this task manager, let the child task proactively cleanup the
+parent-to-child reference. This task manager style of cleaning things up have a
+disadvantage that it can only be cleaned up in the "container order" of
+`tg.tasks`. This is bad for server-like use case where the number of child task
+is unbounded.
 """
 function waitall!(tg::TaskGroup, maindone::Promise{Nothing}, token::CancellationTokenType)
     function _wait(task::Task)
@@ -100,7 +106,7 @@ function waitall!(tg::TaskGroup, maindone::Promise{Nothing}, token::Cancellation
     # @info "phase 1 start"
     @trace label = :waitall_start stack = tg.tasks.data.head[]
     while true
-        t = @something((taking(tg.tasks) | fetching(maindone))(), break)
+        t = @something((taking(tg.tasks) | _fetching(maindone))(), break)
         # @info "waiting" repr(t)
         _wait(t)
         # @info "done waiting" repr(t)
@@ -109,7 +115,7 @@ function waitall!(tg::TaskGroup, maindone::Promise{Nothing}, token::Cancellation
     # @info "phase 1 done"
     # @info "phase 2 start"
 
-    @assert fetching(maindone)() === nothing
+    @assert _fetching(maindone)() === nothing
     # The body of `withtaskgroup` is done. We now only need to process
     # `tg.tasks` until it's emptied.
     while true
@@ -173,7 +179,7 @@ Julio.iscancelled() = is_token_cancelled(@something(CANCELLATION_TOKEN[], return
 
 function Julio.checkpoint()
     token = @something(CANCELLATION_TOKEN[], return)
-    ans = @something(Reagents.try!(fetching(token)), return)
+    ans = @something(Reagents.try!(_fetching(token)), return)
     # Occasionally try sync? Maybe not useful?
     # ans = @something(Reagents.trysync!(fetching(token)), return)
     ans isa Cancelled && throw(ans)

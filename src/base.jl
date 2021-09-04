@@ -51,7 +51,7 @@ function waiting_cancel()
         else
             cancelled = Identity()
         end
-        return fetching(token) ⨟ cancelled
+        return _fetching(token) ⨟ cancelled
     end
 end
 
