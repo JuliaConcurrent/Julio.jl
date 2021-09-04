@@ -103,4 +103,25 @@ function test_iscancelled()
     @test !c
 end
 
+function test_close_cancelled()
+    sept, rept = Julio.channel()
+    Julio.withtaskgroup() do tg
+        Julio.spawn!(tg) do
+            put!(sept, 111)
+            try
+                put!(sept, 222)   # does not succeed
+            finally
+                close(sept)
+            end
+        end
+        @test take!(rept) == 111
+        Julio.cancel!(tg)
+    end
+    ans = :notset
+    Julio.withtimeout(1) do
+        ans = iterate(rept)
+    end
+    @test ans === nothing
+end
+
 end  # module
