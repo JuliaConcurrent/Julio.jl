@@ -72,7 +72,7 @@ end
 
 function manage!(manager::IOManager)
     (; request_receive, shutdown) = manager
-    shutdown_receive = fetching(shutdown)
+    shutdown_receive = _fetching(shutdown)
     # shutdown_receive = shutdown_receive ⨟ PostCommit(_ -> @info "shutting down")
     while true
         try_receive = request_receive | shutdown_receive

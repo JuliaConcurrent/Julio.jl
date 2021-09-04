@@ -53,7 +53,8 @@ fetching(p::Promise{T}) where {T} =
     (
         (Return(nothing) ⨟ p.receive ⨟ Read(p.value)) |
         (Read(p.value) ⨟ Map(x -> x === nothing ? Block() : x))
-    ) ⨟ Map(x -> x isa Closed ? PromiseClosedError(p) : something(x))
+    ) ⨟ Map(x -> x isa Closed ? PromiseClosedError(p) : x::Some)
+_fetching(p) = fetching(p) ⨟ Map(something)
 
 maybefetching(p::Promise{T}) where {T} = Read(p.value) ⨟ Map() do x
     if x isa Closed
