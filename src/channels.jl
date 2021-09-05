@@ -83,7 +83,7 @@ taking(rept::ReceiveEndpoint) =
 
 function Base.close(ept::ChannelEndpoint)
     @trace(label = :close_start, issend = ept isa SendEndpoint)
-    wasclosed = Julio.tryput!(selfclosed(ept), nothing)
+    wasclosed = event(Julio.tryput!, selfclosed(ept), nothing)()
     @trace(label = :close_done, issend = ept isa SendEndpoint, wasclosed)
     return
 end
