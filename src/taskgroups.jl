@@ -173,7 +173,7 @@ function Julio.spawn!(@nospecialize(f), tg::TaskGroup, args...)
     return task
 end
 
-is_token_cancelled(token) = maybefetching(token)() isa Some{Cancelled}
+is_token_cancelled(token) = something(maybefetching(token)()) isa Some{Cancelled}
 
 Julio.iscancelled() = is_token_cancelled(@something(CANCELLATION_TOKEN[], return false))
 
