@@ -60,7 +60,7 @@ maybefetching(p::Promise{T}) where {T} = Read(p.value) ⨟ Map() do x
     if x isa Closed
         PromiseClosedError(p)
     else
-        x
+        Some(x)
     end
 end
 

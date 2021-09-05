@@ -31,4 +31,19 @@ function test_union_someany_missing()
     @test p[] === missing
 end
 
+function test_maybefetch()
+    @testset for (T, value) in [(Nothing, nothing), (Int, 111)]
+        value::T
+        test_maybefetch(T, value)
+        test_maybefetch(Any, value)
+    end
+end
+
+function test_maybefetch(T, value)
+    p = Julio.Promise{T}()
+    @test Julio.maybefetch(p) === nothing
+    p[] = value
+    @test Julio.maybefetch(p) === Some{T}(value)
+end
+
 end  # module
