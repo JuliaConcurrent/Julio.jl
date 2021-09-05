@@ -25,3 +25,12 @@ trypopping(stack::TreiberStack) =
             return (xs.tail, Some(xs.head))
         end
     end
+
+Base.push!(stack::TreiberStack, x) = pushing(stack)(convert(eltype(stack), x))
+maybepop_nowait!(stack::TreiberStack) = trypopping(stack)()
+
+Base.IteratorSize(::Type{<:TreiberStack}) = Base.SizeUnknown()
+function Base.iterate(stack::TreiberStack, list = stack.head[])
+    node = @something(list, return nothing)
+    return (node.head, node.tail)
+end

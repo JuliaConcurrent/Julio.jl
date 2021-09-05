@@ -1,6 +1,7 @@
 module JulioTests
 
 include("utils.jl")
+include("test_stack.jl")
 include("test_taskgroups.jl")
 include("test_channels.jl")
 include("test_promise.jl")
