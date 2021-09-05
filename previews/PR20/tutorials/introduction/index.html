@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Introduction · Julio</title><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.039/juliamono-regular.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.11/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">Julio</a></span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Julio.jl</a></li><li><span class="tocitem">Tutorials</span><ul><li class="is-active"><a class="tocitem" href>Introduction</a><ul class="internal"><li><a class="tocitem" href="#Tasks-and-task-groups"><span>Tasks and task groups</span></a></li><li><a class="tocitem" href="#Channels"><span>Channels</span></a></li><li><a class="tocitem" href="#Timeout"><span>Timeout</span></a></li><li><a class="tocitem" href="#Automatic-cancellation"><span>Automatic cancellation</span></a></li><li><a class="tocitem" href="#man-cancel-scope"><span>Manual cancellation</span></a></li><li><a class="tocitem" href="#Event-selection"><span>Event selection</span></a></li></ul></li><li><a class="tocitem" href="../select/">Select</a></li><li><a class="tocitem" href="../happy_eyeballs/">Example: Happy Eyeballs</a></li><li><a class="tocitem" href="../search3/">Example: Google Search 3.0</a></li><li><a class="tocitem" href="../dying_philosopher/">Example: Dying philosopher</a></li><li><a class="tocitem" href="../custom_select/">Advanced: Custom select</a></li></ul></li><li><span class="tocitem">Reference</span><ul><li><a class="tocitem" href="../../reference/api/">API</a></li></ul></li><li><span class="tocitem">Explanation</span><ul><li><a class="tocitem" href="../../explanation/structured_concurrency/">Structured concurrencty</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Tutorials</a></li><li class="is-active"><a href>Introduction</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Introduction</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/tkf/Julio.jl/blob/master/examples/introduction.jl" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>Julio.jl is still work-in-progress.</p></div></div><h1 id="Introduction-to-Julio"><a class="docs-heading-anchor" href="#Introduction-to-Julio">Introduction to Julio</a><a id="Introduction-to-Julio-1"></a><a class="docs-heading-anchor-permalink" href="#Introduction-to-Julio" title="Permalink"></a></h1><pre><code class="language-julia hljs">using Julio
+using Test</code></pre><p>(Note: Currently there&#39;s no macro-based syntactic sugar. This is for making sure all the components are composable during the design process.)</p><h2 id="Tasks-and-task-groups"><a class="docs-heading-anchor" href="#Tasks-and-task-groups">Tasks and task groups</a><a id="Tasks-and-task-groups-1"></a><a class="docs-heading-anchor-permalink" href="#Tasks-and-task-groups" title="Permalink"></a></h2><p>Julio manages tasks in <em>task groups</em>. Spawning a task requires creating a task group first.</p><pre><code class="language-julia hljs">function test_simple_spawn()
+    Julio.withtaskgroup() do tg
+        task = Julio.spawn!(tg) do
+            3 + 4
+        end
+        @test (1 + 2) + fetch(task) == 10
+    end
+end</code></pre><p>This style is useful when combined with the resource management using the <code>open(...) do</code> idiom (scope-based resource management).  See <a href="tutorials/@id black-box">black box rule</a> for more information.</p><h2 id="Channels"><a class="docs-heading-anchor" href="#Channels">Channels</a><a id="Channels-1"></a><a class="docs-heading-anchor-permalink" href="#Channels" title="Permalink"></a></h2><pre><code class="language-julia hljs">function test_channel()
+    Julio.withtaskgroup() do tg</code></pre><p>A channel can be created using <code>Julio.channel</code>. It returns the <em>endpoints</em> for the send and receive sides.</p><pre><code class="language-julia hljs">        send_endpoint, receive_endpoint = Julio.channel()</code></pre><p>The <code>send_endpoint</code> supports <code>put!</code> function. It can be called from arbitrary tasks safely.</p><pre><code class="language-julia hljs">        Julio.spawn!(tg) do
+            try
+                for i in 1:10
+                    put!(send_endpoint, i)
+                end
+            finally
+                close(send_endpoint)  # signaling that there are no more items
+            end
+        end</code></pre><p>The <code>receive_endpoint</code> supports <code>take!</code>. It can be called from arbitrary tasks. It also supports the iteration protocol.  The following <code>collect(receive_endpoint)</code> continues until the child task calls <code>close(send_endpoint)</code>.</p><pre><code class="language-julia hljs">        try
+            @test collect(receive_endpoint) == 1:10
+        finally
+            close(receive_endpoint)  # signaling the child task if something went wrong
+        end</code></pre><hr/><pre><code class="language-julia hljs">    end
+end</code></pre><p>Use a task group to wait for multiple tasks before closing the endpoint:</p><pre><code class="language-julia hljs">function test_channel_open_many_scoped()
+    send_endpoint, receive_endpoint = Julio.channel()
+    local task
+    Julio.withtaskgroup() do tg0
+        task = Julio.spawn!(tg0) do
+            try
+                sort!(collect(receive_endpoint))
+            finally
+                close(receive_endpoint)
+            end
+        end
+        try
+            Julio.withtaskgroup() do tg1
+                for i in 1:10
+                    Julio.spawn!(tg1) do
+                        put!(send_endpoint, i)
+                    end
+                end
+            end
+        finally
+            close(send_endpoint)
+        end
+    end
+    @test fetch(task) == 1:10
+end</code></pre><p>Note that <code>Julio.channel</code> is always unbuffered. Use <code>Julio.queue</code> and <code>Julio.stack</code> for buffered channels.</p><pre><code class="language-julia hljs">function test_queue()
+    send_endpoint, receive_endpoint = Julio.queue()
+    put!(send_endpoint, 111)
+    put!(send_endpoint, 222)
+    @test take!(receive_endpoint) == 111
+    @test take!(receive_endpoint) == 222
+end</code></pre><h2 id="Timeout"><a class="docs-heading-anchor" href="#Timeout">Timeout</a><a id="Timeout-1"></a><a class="docs-heading-anchor-permalink" href="#Timeout" title="Permalink"></a></h2><p>Julio can introduce a timeout for arbitrary code blocks.  The timeout is triggered whenever the code is blocked by a Julia API.</p><pre><code class="language-julia hljs">function test_timeout()
+    send_endpoint, receive_endpoint = Julio.channel()
+    Julio.withtimeout(0.1) do
+        put!(send_endpoint, nothing)  # never completes
+    end
+end</code></pre><h2 id="Automatic-cancellation"><a class="docs-heading-anchor" href="#Automatic-cancellation">Automatic cancellation</a><a id="Automatic-cancellation-1"></a><a class="docs-heading-anchor-permalink" href="#Automatic-cancellation" title="Permalink"></a></h2><p>Julio cancells the tasks within the same task group if one of them (including the parent task) throws an exception.</p><pre><code class="language-julia hljs">function produce!(input)
+    i = 0
+    while true
+        i += 1
+        put!(input, i)
+    end
+end
+
+function test_cancellation()
+    send_endpoint, receive_endpoint = Julio.channel()
+    try
+        task = nothing
+        err = try
+            Julio.withtaskgroup() do tg
+                task = Julio.spawn!(tg) do
+                    try
+                        produce!(send_endpoint)
+                    finally
+                        close(send_endpoint)
+                    end
+                end
+                for i in 1:3
+                    @test take!(receive_endpoint) == i
+                end
+                error(&quot;cancel&quot;)
+            end
+            nothing
+        catch err
+            err
+        end
+        @test err isa Exception
+        @test istaskdone(task)
+    finally
+        close(receive_endpoint)
+    end
+end</code></pre><h2 id="man-cancel-scope"><a class="docs-heading-anchor" href="#man-cancel-scope">Manual cancellation</a><a id="man-cancel-scope-1"></a><a class="docs-heading-anchor-permalink" href="#man-cancel-scope" title="Permalink"></a></h2><h3 id="Cancel-scope"><a class="docs-heading-anchor" href="#Cancel-scope">Cancel scope</a><a id="Cancel-scope-1"></a><a class="docs-heading-anchor-permalink" href="#Cancel-scope" title="Permalink"></a></h3><p>Cancellation of Julio tasks can also be triggered manually.</p><pre><code class="language-julia hljs">function test_cancel_scope()
+    _, receive_endpoint = Julio.channel()</code></pre><p>The parts of code that are cancelled together can be managed by <code>Julio.cancelscope</code>:</p><pre><code class="language-julia hljs">    scope = Julio.cancelscope()</code></pre><p>Let&#39;s see how it works with a nested task tree:</p><pre><code class="language-julia hljs">    Julio.withtaskgroup() do tg0
+        Julio.spawn!(tg0) do</code></pre><p>The cancel scope can be installed at different places.  For example, it can be manually <code>open</code>ed.  The blocking calls inside the <code>do</code> block now checks the cancellation signal whenever Julio&#39;s blocking method is invoked.</p><pre><code class="language-julia hljs">            open(scope) do
+                take!(receive_endpoint)  # blocks
+            end</code></pre><hr/><pre><code class="language-julia hljs">        end  # Julio.spawn!(tg0) do
+        Julio.spawn!(tg0) do</code></pre><p>The cancel scope can be also be passed to <code>Julio.withtaskgroup</code> to associate the cancellation scope to the tasks managed by it.</p><pre><code class="language-julia hljs">            Julio.withtaskgroup(scope) do tg1
+                Julio.spawn!(tg1) do
+                    take!(receive_endpoint)  # blocks
+                end
+                take!(receive_endpoint)  # blocks
+            end</code></pre><hr/><pre><code class="language-julia hljs">        end  # Julio.spawn!(tg0) do</code></pre><p>Cancellation can be triggered by <code>Julio.cancel!</code>.</p><pre><code class="language-julia hljs">        Julio.cancel!(scope)</code></pre><p>Since the cancellation signal unblocks all the blocking calls <code>take!(receive_endpoint)</code>, this code reliably synchronizes all sub-tasks.</p><pre><code class="language-julia hljs">    end  # Julio.withtaskgroup() do tg0
+end</code></pre><h3 id="Interop-with-other-cancellation-mechanisms"><a class="docs-heading-anchor" href="#Interop-with-other-cancellation-mechanisms">Interop with other cancellation mechanisms</a><a id="Interop-with-other-cancellation-mechanisms-1"></a><a class="docs-heading-anchor-permalink" href="#Interop-with-other-cancellation-mechanisms" title="Permalink"></a></h3><p>Julio can be used with other cancellation mechanisms. For example, several <code>Base</code> API supports cancellation by concurrent <code>close</code> on a &quot;resource&quot; object (e.g., <code>Base.Channel</code>, <code>Timer</code>, files). We can hook the <code>close</code> call into Julio&#39;s cancellation token by calling <code>Julio.onclose(close, resource)</code>.</p><pre><code class="language-julia hljs">function test_cancel_interop()
+    result = @timed try
+        Julio.withtaskgroup() do tg
+            Julio.spawn!(tg) do
+                timer = Timer(60)
+                Julio.oncancel(close, timer)  # call `close(timer)` on cancellation
+                wait(timer)  # this can be interrupted by `close(timer)`
+            end
+            error(&quot;cancelling&quot;)
+        end
+        false
+    catch
+        true
+    end
+    @test result.value  # terminated by the execption
+    @test result.time &lt; 30  # it didn&#39;t wait 60 seconds
+end</code></pre><h2 id="Event-selection"><a class="docs-heading-anchor" href="#Event-selection">Event selection</a><a id="Event-selection-1"></a><a class="docs-heading-anchor-permalink" href="#Event-selection" title="Permalink"></a></h2><p>Julio supports executing one (and exactly one) of synchronizable <em>events</em>. Here, an event means a possibly blocking operations such as taking an item from a channel.</p><pre><code class="language-julia hljs">function test_select()
+    Julio.withtaskgroup() do tg</code></pre><p>Suppose that we have two channels, but only one of them are available:</p><pre><code class="language-julia hljs">        send_endpoint1, receive_endpoint1 = Julio.channel()
+        send_endpoint2, receive_endpoint2 = Julio.channel()
+        Julio.spawn!(tg) do
+            put!(send_endpoint1, 111)
+        end</code></pre><p>We can select an available &quot;event&quot; (here, <code>take!</code>) using <code>Julio.select</code> function.</p><pre><code class="language-julia hljs">        selected = nothing
+        Julio.select(
+            (take!, receive_endpoint1) =&gt; item -&gt; begin
+                selected = item  # result of `take!(receive_endpoint1)`
+            end,
+            (take!, receive_endpoint2) =&gt; item -&gt; begin
+                selected = item  # result of `take!(receive_endpoint2)` (unreachable)
+            end,
+        )</code></pre><p>Since only <code>receive_endpoint1</code> has a task at the input endpoint, <code>take!(receive_endpoint1)</code> is chosen:</p><pre><code class="language-julia hljs">        @test selected == 111</code></pre><hr/><pre><code class="language-julia hljs">    end
+end</code></pre><p>Note that <code>Julio.select</code> works for various synchronizable events and not just channels.  See <a href="../select/#man-select">select</a> for more information.</p><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../">« Julio.jl</a><a class="docs-footer-nextpage" href="../select/">Select »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.5 on <span class="colophon-date" title="Sunday 5 September 2021 05:07">Sunday 5 September 2021</span>. Using Julia version 1.7.0-beta4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
