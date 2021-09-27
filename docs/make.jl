@@ -121,7 +121,7 @@ makedocs(
 )
 
 deploydocs(
-    repo = "github.com/tkf/Julio.jl",
+    repo = "github.com/JuliaConcurrent/Julio.jl",
     push_preview = true,
     # See: https://juliadocs.github.io/Documenter.jl/stable/lib/public/#Documenter.deploydocs
 )
